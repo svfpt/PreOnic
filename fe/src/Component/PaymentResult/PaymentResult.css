@@ -1,0 +1,101 @@
+.payment-result-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0f9ff 100%);
+  padding: 24px;
+}
+
+.pr-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 48px 40px;
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.pr-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.pr-icon svg { width: 40px; height: 40px; }
+
+.pr-icon.success { background: #dcfce7; color: #16a34a; }
+.pr-icon.pending { background: #fef3c7; color: #d97706; }
+.pr-icon.cancelled { background: #fee2e2; color: #dc2626; }
+.pr-icon.error { background: #fee2e2; color: #dc2626; }
+.pr-icon.verifying { background: #e0f2fe; color: #0284c7; }
+
+.pr-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #bfdbfe;
+  border-top-color: #0284c7;
+  border-radius: 50%;
+  animation: prSpin 0.8s linear infinite;
+}
+
+@keyframes prSpin {
+  to { transform: rotate(360deg); }
+}
+
+.pr-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px;
+}
+
+.pr-card p { color: #6b7280; margin: 0 0 4px; font-size: 15px; }
+
+.pr-amount {
+  font-size: 28px !important;
+  font-weight: 700;
+  color: #16a34a !important;
+  margin: 16px 0 8px !important;
+}
+
+.pr-balance {
+  font-size: 15px;
+  color: #374151 !important;
+}
+
+.pr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.pr-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.pr-btn.primary {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+}
+
+.pr-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
+
+.pr-btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.pr-btn.secondary:hover { background: #e5e7eb; }

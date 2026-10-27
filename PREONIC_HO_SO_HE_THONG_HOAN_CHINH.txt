@@ -1,0 +1,1965 @@
+﻿PREONIC - TÀI LIỆU PHÂN TÍCH HỆ THỐNG VÀ HOÀN THIỆN HỒ SƠ DỰ ÁN
+Ngày khảo sát: 26/03/2026
+Phạm vi repo: e:\K7\exe3\PreOnic
+Nguồn sự thật được sử dụng: mã nguồn hiện tại trong repo + xác minh build/runtime cơ bản
+
+GHI CHÚ QUAN TRỌNG
+- Báo cáo này được viết dựa trên code hiện có, không dựa trên tài liệu cũ.
+- File `PROJECT_OVERVIEW.txt` và một số cấu hình frontend có thể lệch so với code đang chạy; `be/.env.example` và `fe/.env.example` đã được đồng bộ.
+- Báo cáo không công bố giá trị bí mật trong `.env`, chỉ mô tả tên biến và vai trò.
+- File TXT không chèn ảnh trực tiếp. Vì vậy phần "Kết quả chạy" sẽ cung cấp:
+  1. Kết quả xác minh kỹ thuật thực tế.
+  2. Danh mục ảnh cần chụp, tên file gợi ý, caption và kịch bản demo để chèn vào Word/PDF.
+
+========================================================================
+1. TỔNG QUAN HỆ THỐNG
+========================================================================
+
+1.1. Mục tiêu nghiệp vụ
+- PreOnic là nền tảng kết nối nông dân và doanh nghiệp trong bài toán bao tiêu nông sản.
+- Hệ thống tập trung vào 6 nhóm nghiệp vụ:
+  - Xác thực và phân quyền người dùng.
+  - Quản lý sản phẩm nông sản.
+  - Tạo, ký và theo dõi hợp đồng.
+  - Escrow / ký quỹ / giải ngân theo milestone.
+  - Ví ảo và nạp tiền qua SePay.
+  - Nhắn tin, thông báo, cảnh báo thời tiết, đánh giá đối tác.
+
+1.2. Kiến trúc tổng thể
+- Backend:
+  - Nền tảng: Express + TypeScript + Mongoose.
+  - Điểm vào chính: `be/src/server.ts`, `be/src/app.ts`.
+  - Có cron job cho thời tiết và nhắc doanh nghiệp xác nhận đơn hàng đã giao.
+- Frontend:
+  - Nền tảng: React 19 + `react-router-dom` 7 + Bootstrap + Framer Motion + Recharts.
+  - Điểm vào chính: `fe/src/index.js`, `fe/src/App.js`.
+  - Quản lý đăng nhập bằng `AuthContext` + `localStorage` + `axios interceptor`.
+- Database:
+  - MongoDB.
+  - 12 model/chính sách dữ liệu chính: `User`, `Product`, `Review`, `Contract`, `Escrow`, `Dispute`, `PaymentTransaction`, `Notification`, `WeatherAlert`, `Conversation`, `Message`, `PartnerRating`.
+- Lưu trữ file:
+  - Ảnh/PDF upload lưu vào thư mục `be/uploads` và serve qua route `/uploads/*`.
+
+1.3. Công nghệ và thư viện chính
+- Backend:
+  - `express`, `mongoose`, `jsonwebtoken`, `bcryptjs`, `cors`, `helmet`, `compression`, `cookie-parser`, `morgan`, `nodemailer`, `node-cron`.
+- Frontend:
+  - `react`, `react-router-dom`, `axios`, `bootstrap`, `react-bootstrap`, `framer-motion`, `recharts`.
+
+1.4. Cấu hình runtime đang dùng trong workspace
+- Backend:
+  - `PORT=8080`
+  - `API_PREFIX=/api/v1`
+  - `FRONTEND_URL=http://localhost:3000`
+- Frontend:
+  - `REACT_APP_API_URL=http://localhost:8080/api/v1`
+  - `PORT=3000`
+- Tình trạng khớp:
+  - `be/.env` và `fe/.env` hiện tại đang khớp nhau theo runtime thực tế: `PORT=8080` và `PORT=3000`.
+  - `be/.env.example` và `fe/.env.example` đã đồng bộ theo runtime 8080/3000.
+  - `fe/package.json` đã trỏ `proxy` về `http://localhost:8080`.
+
+1.5. Kết quả xác minh thực tế khi khảo sát
+- `npm run build` trong thư mục `be`: thành công.
+- `npm run build` trong thư mục `fe`: thành công.
+- `GET http://localhost:8080/health`: thành công.
+- `GET http://localhost:8080/api/v1/products`: thành công, trả về 13 sản phẩm active tại thời điểm khảo sát.
+- Điều này cho thấy:
+  - Backend đang chạy.
+  - Database đang kết nối được.
+  - API công khai sản phẩm hoạt động.
+
+1.6. Tuyến route frontend chính
+- Công khai:
+  - `/`
+  - `/solutions`
+  - `/contact`
+  - `/auth`
+  - `/register`
+  - `/reset-password`
+  - `/verify-email`
+  - `/products`
+  - `/products/:id`
+- Protected - Enterprise:
+  - `/enterprise`
+  - `/enterprise-home`
+- Protected - Farmer:
+  - `/farmer`
+  - `/farmer-home`
+- Protected - Chung cho cả hai vai trò:
+  - `/messaging`
+  - `/contract-flow`
+  - `/profile`
+  - `/payment/success`
+  - `/payment/cancel`
+
+1.7. Cơ chế phân quyền tổng quát
+- Guest:
+  - Xem trang chủ, xem sản phẩm, xem chi tiết sản phẩm, đăng ký/đăng nhập.
+- Farmer:
+  - CRUD sản phẩm của mình.
+  - Xem dashboard farmer.
+  - Tạo/ký hợp đồng ở vai trò nông dân.
+  - Xác nhận milestone của nông dân trong escrow.
+  - Xem thời tiết/cảnh báo, thông báo, nhắn tin, đánh giá đối tác.
+- Enterprise:
+  - Xem dashboard enterprise.
+  - Tạo/ký hợp đồng ở vai trò doanh nghiệp.
+  - Nạp tiền/ví ảo, ký quỹ escrow.
+  - Đánh giá sản phẩm.
+  - Xác nhận milestone doanh nghiệp trong escrow.
+- Admin:
+  - Xử lý `resolve dispute` khi có tranh chấp.
+- Lưu ý:
+  - API `resolve dispute` hiện đã được giới hạn admin.
+
+========================================================================
+2. THIẾT KẾ DỮ LIỆU
+========================================================================
+
+2.1. Vai trò, trạng thái và enum quan trọng
+
+User role
+- `farmer`
+- `enterprise`
+- `admin`
+
+Contract status
+- `draft`
+- `pending`
+- `approved`
+- `active`
+- `completed`
+- `cancelled`
+- `disputed`
+
+Escrow status
+- `awaiting_deposit`
+- `funded`
+- `partially_released`
+- `fully_released`
+- `refunded`
+- `disputed`
+
+Milestone status
+- `pending`
+- `in_progress`
+- `completed`
+- `disputed`
+
+Dispute status
+- `open`
+- `under_review`
+- `resolved_farmer`
+- `resolved_enterprise`
+- `closed`
+
+Payment transaction type
+- `topup`
+- `escrow_deposit`
+- `escrow_release`
+- `refund`
+- `commission`
+
+Payment transaction status
+- `pending`
+- `completed`
+- `failed`
+- `cancelled`
+
+Notification type
+- `weather_alert`
+- `contract`
+- `escrow`
+- `system`
+- `insurance`
+
+Weather alert type
+- `extreme_heat`
+- `extreme_cold`
+- `heavy_rain`
+- `strong_wind`
+- `drought`
+
+2.2. Quan hệ dữ liệu tổng quát
+- 1 `User` có thể tạo nhiều `Product` qua trường `createdBy`.
+- 1 `Product` có thể có nhiều `Review`.
+- 1 `Contract` thuộc về 1 farmer và 1 enterprise.
+- 1 `Contract` có thể tham chiếu 1 `Product`.
+- 1 `Contract` có tối đa 1 `Escrow`.
+- 1 `Escrow` chứa nhiều milestone và nhiều giao dịch escrow nội bộ.
+- 1 `Escrow` có thể phát sinh nhiều `Dispute`.
+- 1 `User` có nhiều `Notification`.
+- 1 `User` có nhiều `WeatherAlert`.
+- 1 `User` có nhiều `PaymentTransaction`.
+- 1 `Conversation` có nhiều `Message`.
+- 1 `User` có thể tham gia nhiều `Conversation`.
+- 1 `Contract` có thể phát sinh đánh giá đối tác qua `PartnerRating`.
+
+2.3. Danh sách collections / models
+
+[01] User -> collection mặc định: `users`
+Mục đích
+- Lưu tài khoản đăng nhập và hồ sơ người dùng.
+
+Trường chính
+- `email`: unique, lowercase.
+- `password`: hash bằng `bcrypt`, mặc định bị ẩn khỏi `toJSON`.
+- `role`: `farmer | enterprise`.
+- `firstName`, `lastName`, `fullName`.
+- `phone`, `avatar`.
+- `isActive`, `isVerified`.
+- `emailVerificationToken`, `emailVerificationExpires`.
+- `refreshToken`.
+- `passwordResetToken`, `passwordResetExpires`.
+- `passwordChangedAt`, `lastLogin`.
+- `loginAttempts`, `lockUntil`.
+- `province`, `district`, `ward`, `address`.
+- `coordinates.lat`, `coordinates.lng`.
+- `virtualBalance`.
+- `reputationScore`, `totalRatings`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- unique `email`.
+- index `role`.
+- index `passwordResetToken`.
+- index `emailVerificationToken`.
+- index `isActive`.
+
+Ghi chú nghiệp vụ
+- `fullName` được build từ `firstName + lastName` trước khi save.
+- Sau 5 lần đăng nhập sai, tài khoản bị khóa 15 phút.
+- `virtualBalance` mặc định 10.000.000 VND.
+- `refreshToken` được lưu trong DB để refresh session.
+
+[02] Product -> collection mặc định: `products`
+Mục đích
+- Lưu bài đăng sản phẩm nông sản của nông dân.
+
+Trường chính
+- `name`, `location`, `farm`, `image`.
+- `priceMin`, `priceMax`, `unit`.
+- `expectedDate`.
+- `progress`, `remaining`, `totalQuantity`.
+- `note`, `badge`.
+- `category`: `fruit | vegetable | rice | coffee | tea | spice | grain | other`.
+- `region`: `north | central | south`.
+- `type`: `fresh | dried | processed`.
+- `rating`, `reviewCount`.
+- `description`, `nutritionInfo`.
+- `certifications[]`.
+- `seller`: snapshot thông tin người bán (`userId`, `name`, `avatar`, `rating`, `totalContracts`).
+- `commitments[]`.
+- `createdBy`.
+- `isActive`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- index `category`.
+- index `region`.
+- text index trên `name`, `location`, `farm`.
+- index `isActive`.
+- index `createdBy`.
+
+Ghi chú nghiệp vụ
+- `seller` là dữ liệu embed để frontend render nhanh.
+- Xóa sản phẩm là soft delete qua `isActive=false`.
+- Product có thể được doanh nghiệp review.
+
+[03] Review -> collection mặc định: `reviews`
+Mục đích
+- Lưu đánh giá sản phẩm.
+
+Trường chính
+- `productId`.
+- `reviewerId`.
+- `reviewerName`.
+- `reviewerAvatar`.
+- `rating` (1..5).
+- `text`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- unique compound index (`productId`, `reviewerId`): mỗi user chỉ review 1 lần / 1 sản phẩm.
+
+Ghi chú nghiệp vụ
+- Sau khi thêm review, hệ thống tính lại rating trung bình và `reviewCount` cho `Product`.
+
+[04] Contract -> collection mặc định: `contracts`
+Mục đích
+- Lưu hợp đồng bao tiêu giữa nông dân và doanh nghiệp.
+
+Trường chính
+- `contractCode`.
+- `productId`.
+- `farmerId`, `enterpriseId`.
+- `farmerName`, `enterpriseName`.
+- `productName`.
+- `quantity`, `unit`.
+- `pricePerUnit`.
+- `totalValue`.
+- `commission`, `commissionRate`.
+- `depositAmount`, `depositPercentage`.
+- `paymentTerms`: `50_50 | 30_70 | 100_delivery | 100_upfront`.
+- `deliveryDate`.
+- `notes`.
+- `status`.
+- `signedByFarmer`, `signedByEnterprise`, `signedAt`.
+- `completedAt`, `cancelledAt`, `cancelReason`.
+- `farmLocation`.
+- `insuranceFarmer`.
+- `insuranceEnterprise`.
+- `riskSharingTerms`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- unique `contractCode`.
+- index (`farmerId`, `status`).
+- index (`enterpriseId`, `status`).
+- index `status`.
+
+Ghi chú nghiệp vụ
+- Mã hợp đồng được sinh theo dạng `PRE-YYYY-XXXX`.
+- Khi cả hai bên ký, `status` chuyển `approved` và hệ thống tạo escrow.
+- Hợp đồng có 2 khối insurance độc lập cho farmer và enterprise.
+
+[05] Escrow -> collection mặc định: `escrows`
+Mục đích
+- Lưu dòng tiền ký quỹ/giải ngân theo từng mốc.
+
+Trường chính
+- `contractId` (unique).
+- `farmerId`, `enterpriseId`.
+- `totalAmount`.
+- `depositedAmount`, `releasedAmount`, `refundedAmount`.
+- `status`.
+- `milestones[]`:
+  - `step`, `name`, `description`, `status`.
+  - `requiredBy`.
+  - `farmerConfirmed`, `farmerConfirmedAt`.
+  - `enterpriseConfirmed`, `enterpriseConfirmedAt`.
+  - `releaseAmount`, `releasePercentage`.
+  - `completedAt`, `evidence`.
+- `transactions[]`:
+  - `type`: `deposit | release | refund`.
+  - `amount`.
+  - `fromUserId`, `toUserId`.
+  - `milestoneStep`.
+  - `description`.
+  - `createdAt`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- unique `contractId`.
+- index `farmerId`.
+- index `enterpriseId`.
+- index `status`.
+
+Ghi chú nghiệp vụ
+- Milestone được sinh động theo `paymentTerms`.
+- Sau khi deposit, contract chuyển `active`.
+- Giải ngân thực hiện vào `virtualBalance` của farmer.
+
+[06] Dispute -> collection mặc định: `disputes`
+Mục đích
+- Lưu khiếu nại/tranh chấp phát sinh từ escrow.
+
+Trường chính
+- `contractId`.
+- `escrowId`.
+- `milestoneStep`.
+- `raisedBy`, `raisedByRole`.
+- `againstUserId`.
+- `reason`.
+- `evidence[]`.
+- `status`.
+- `adminNotes`.
+- `resolvedAt`.
+- `resolution`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- index `contractId`.
+- index `escrowId`.
+- index `raisedBy`.
+- index `status`.
+
+Ghi chú nghiệp vụ
+- Khi có dispute, milestone và escrow chuyển sang `disputed`.
+- Resolution có thể nghiêng về farmer hoặc enterprise.
+
+[07] PaymentTransaction -> collection mặc định: `paymenttransactions`
+Mục đích
+- Lưu lịch sử giao dịch ví ảo / gateway.
+
+Trường chính
+- `userId`.
+- `type`.
+- `amount`.
+- `status`.
+- `paymentMethod`: `payos | sepay | internal | demo`.
+- `gatewayRef`.
+- `orderCode`.
+- `description`.
+- `balanceBefore`, `balanceAfter`.
+- `metadata`.
+- `createdAt`.
+- `completedAt`.
+
+Chỉ mục / ràng buộc
+- index `userId`.
+- index (`userId`, `createdAt desc`).
+- index `status`.
+- `orderCode` unique sparse.
+
+Ghi chú nghiệp vụ
+- Model đã dự trù type `escrow_deposit`, `escrow_release`, `refund`, `commission`.
+- Tuy nhiên trong code hiện tại, `PaymentTransaction` chỉ đang được create cho `topup` và `demo topup`.
+
+[08] Notification -> collection mặc định: `notifications`
+Mục đích
+- Thông báo in-app cho user.
+
+Trường chính
+- `userId`.
+- `type`.
+- `title`, `message`.
+- `isRead`.
+- `relatedId`, `relatedModel`.
+- `severity`: `info | warning | critical`.
+- `emailSent`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- index (`userId`, `createdAt desc`).
+- index (`userId`, `isRead`).
+- index `type`.
+
+Ghi chú nghiệp vụ
+- `severity=critical` có thể kích hoạt gửi email nếu SMTP đã cấu hình.
+
+[09] WeatherAlert -> collection mặc định: `weatheralerts`
+Mục đích
+- Lưu các cảnh báo thời tiết cho user.
+
+Trường chính
+- `userId`.
+- `contractId`.
+- `alertType`.
+- `severity`.
+- `location.province`, `district`, `coordinates`.
+- `weatherData`: `temp`, `humidity`, `windSpeed`, `rain1h`, `rain24h`, `description`, `icon`.
+- `thresholdExceeded`.
+- `message`.
+- `isRead`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- index (`userId`, `createdAt desc`).
+- index `alertType`.
+- index `severity`.
+- index `location.province`.
+
+Ghi chú nghiệp vụ
+- Cron job kiểm tra 6 giờ / lần và tạo alert nếu vượt ngưỡng.
+- Có cơ chế tránh tạo alert trùng lặp trong 6 giờ.
+
+[10] Conversation -> collection mặc định: `conversations`
+Mục đích
+- Đại diện một cuộc trò chuyện giữa 2 user.
+
+Trường chính
+- `participants[]`.
+- `lastMessage`.
+- `lastMessageAt`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- index `participants`.
+
+Ghi chú nghiệp vụ
+- Conversation hiện được tạo cho cặp 2 người.
+
+[11] Message -> collection mặc định: `messages`
+Mục đích
+- Lưu tin nhắn trong conversation.
+
+Trường chính
+- `conversationId`.
+- `sender`.
+- `text`.
+- `attachments[]`.
+- `readBy[]`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- index (`conversationId`, `createdAt desc`).
+
+Ghi chú nghiệp vụ
+- Frontend hiện poll mỗi 5 giây, chưa dùng websocket.
+
+[12] PartnerRating -> collection mặc định: `partnerratings`
+Mục đích
+- Lưu đánh giá đối tác giữa 2 vai trò.
+
+Trường chính
+- `contractId`.
+- `reviewerId`, `revieweeId`.
+- `reviewerRole`, `revieweeRole`.
+- `criteria`:
+  - farmer -> enterprise: `transparency`, `paymentPunctuality`, `coordination`.
+  - enterprise -> farmer: `quality`, `onTimeDelivery`, `committedVolume`.
+- `overallRating`.
+- `comment`.
+- `createdAt`, `updatedAt`.
+
+Chỉ mục / ràng buộc
+- unique compound index (`contractId`, `reviewerId`).
+- index `revieweeId`.
+- index `reviewerId`.
+
+Ghi chú nghiệp vụ
+- Sau khi tạo rating, hệ thống tính lại `reputationScore` và `totalRatings` của user được đánh giá.
+
+2.4. Milestone escrow theo `paymentTerms`
+
+Template milestone có 5 bước
+- Step 1: Ký quỹ - `requiredBy enterprise`
+- Step 2: Chuẩn bị hàng hóa - `requiredBy farmer`
+- Step 3: Giao hàng - `requiredBy farmer`
+- Step 4: Kiểm tra chất lượng - `requiredBy enterprise`
+- Step 5: Hoàn tất - `requiredBy system`
+
+Tỷ lệ release hiện tại
+- `paymentTerms=50_50` -> `[0, 0, 50, 50, 0]`
+- `paymentTerms=30_70` -> `[0, 0, 30, 60, 10]`
+- `paymentTerms=100_delivery` -> `[0, 0, 100, 0, 0]`
+- `paymentTerms=100_upfront` -> `[100, 0, 0, 0, 0]`
+- `fallback tùy chỉnh` -> `[0, 0, 40, 50, 10]`
+
+2.5. Ngưỡng thời tiết mặc định
+- `extremeHeatTemp`: 38 độ C
+- `extremeColdTemp`: 5 độ C
+- `heavyRainMm`: 100 mm/ngày
+- `strongWindKmh`: 60 km/h
+- `droughtMm`: 5 mm trong 14 ngày
+- `droughtDays`: 14 ngày
+
+========================================================================
+3. THIẾT KẾ API
+========================================================================
+
+3.1. Quy ước chung
+- Base URL thực tế hiện tại:
+  - Backend local: `http://localhost:8080`
+  - API prefix: `/api/v1`
+  - Ví dụ đầy đủ: `http://localhost:8080/api/v1/products`
+- Header bảo mật:
+  - `Authorization: Bearer <accessToken>`
+- Cookie:
+  - `refreshToken` được lưu dạng `httpOnly cookie`.
+- `Content-Type`:
+  - `application/json`
+- Định dạng success response phổ biến:
+  - {
+      "success": true,
+      "status": "success",
+      "message": "...",
+      "data": ...
+    }
+- Định dạng error response phổ biến:
+  - {
+      "success": false,
+      "status": "error",
+      "message": "...",
+      "error": "...",
+      "stack": "..."
+    }
+- Hành vi khi DB mất kết nối:
+  - Mọi route trừ `/health` trả `503` với message "Database is temporarily unavailable..."
+
+3.2. System / Health / Static
+
+GET /health
+- Quyền: Công khai
+- Mục đích: Kiểm tra tình trạng server.
+- Yêu cầu: không có body.
+- Phản hồi:
+  - `status`
+  - `message`
+  - `timestamp`
+  - `environment`
+
+GET /uploads/:fileName
+- Quyền: Công khai
+- Mục đích: Trả file upload tĩnh.
+- Yêu cầu: đường dẫn file trong thư mục uploads.
+- Phản hồi: file static.
+
+3.3. Auth API
+
+POST /api/v1/auth/register
+- Quyền: Công khai
+- Dữ liệu gửi lên:
+  - `fullName`
+  - `email`
+  - `phone`
+  - `province`
+  - `district`
+  - `ward`
+  - `password`
+  - `confirmPassword`
+  - `role`
+  - `agreeTerms`
+- Validation:
+  - email hợp lệ
+  - phone 10-11 số
+  - password tối thiểu 6 ký tự
+  - role chỉ `farmer | enterprise`
+- Phản hồi:
+  - `data.user`
+  - `data.accessToken`
+  - `refreshToken` lưu cookie
+
+POST /api/v1/auth/login
+- Quyền: Công khai
+- Dữ liệu gửi lên:
+  - `emailOrPhone`
+  - `password`
+  - `rememberMe`
+- Quy tắc:
+  - Hỗ trợ đăng nhập bằng email hoặc số điện thoại.
+  - Khóa tạm thời sau 5 lần sai.
+- Phản hồi:
+  - `data.user`
+  - `data.accessToken`
+  - `refreshToken` lưu cookie
+
+POST /api/v1/auth/refresh-token
+- Quyền: Công khai
+- Nguồn token:
+  - cookie `refreshToken` hoặc `req.body.refreshToken`
+- Phản hồi:
+  - `data.accessToken`
+  - refresh token mới trong cookie
+
+POST /api/v1/auth/forgot-password
+- Quyền: Công khai
+- Dữ liệu gửi lên:
+  - `email`
+- Phản hồi:
+  - `message`
+  - môi trường development có thể kèm `resetToken`, `resetURL`
+
+POST /api/v1/auth/reset-password
+- Quyền: Công khai
+- Dữ liệu gửi lên:
+  - `token`
+  - `password`
+  - `confirmPassword`
+- Phản hồi:
+  - message reset thành công
+
+GET /api/v1/auth/me
+- Quyền: Yêu cầu xác thực
+- Header: Bearer token
+- Phản hồi:
+  - `data.user`
+
+POST /api/v1/auth/logout
+- Quyền: Yêu cầu xác thực
+- Mục đích:
+  - Xóa `refreshToken` trong DB
+  - Clear cookie
+- Phản hồi:
+  - message logout thành công
+
+PUT /api/v1/auth/update-password
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `currentPassword`
+  - `newPassword`
+  - `confirmNewPassword`
+- Phản hồi:
+  - `data.user`
+  - `data.accessToken`
+  - refresh token mới trong cookie
+
+PUT /api/v1/auth/update-profile
+- Quyền: Yêu cầu xác thực
+- Body hỗ trợ:
+  - `fullName`
+  - `firstName`
+  - `lastName`
+  - `phone`
+  - `avatar`
+- Phản hồi:
+  - `data.user`
+
+GET /api/v1/auth/verify-email/:token
+- Quyền: Công khai
+- Phản hồi:
+  - message xác minh thành công
+
+POST /api/v1/auth/resend-verification
+- Quyền: Yêu cầu xác thực
+- Phản hồi:
+  - message gửi lại email thành công
+
+DELETE /api/v1/auth/deactivate
+- Quyền: Yêu cầu xác thực
+- Mục đích:
+  - Soft delete account qua `isActive=false`
+- Phản hồi:
+  - message vô hiệu hóa tài khoản
+
+3.4. Farmer API
+
+GET /api/v1/farmer/dashboard
+- Quyền: Yêu cầu xác thực, farmer
+- Dữ liệu phản hồi:
+  - `stats`:
+    - `totalContractValue`
+    - `activeContracts`
+    - `pendingContracts`
+    - `completedContracts`
+    - `totalContracts`
+    - `balance`
+    - `totalEscrowReceived`
+    - `pendingEscrowAmount`
+    - `reputationScore`
+    - `totalProducts`
+  - `recentContracts[]`
+
+GET /api/v1/farmer/crops
+- Quyền: Yêu cầu xác thực, farmer
+- Dữ liệu phản hồi:
+  - `crops[]`
+  - `total`
+
+GET /api/v1/farmer/contracts
+- Quyền: Yêu cầu xác thực, farmer
+- Tham số query:
+  - `status` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `contracts[]`
+  - `total`
+
+GET /api/v1/farmer/orders
+- Quyền: Yêu cầu xác thực, farmer
+- Tham số query:
+  - `status` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `orders[]`
+  - `total`
+- Mỗi order có các trường dashboard cần:
+  - `contractCode`, `enterpriseName`, `productName`, `quantity`, `value`
+  - `status`
+  - `deliveryDate`
+  - `escrowId`, `escrowStatus`
+  - `currentMilestone`
+  - `expectedHarvestDate`
+  - `shippingAllowed`, `shippingRestrictionReason`
+  - `completedSteps`, `totalSteps`
+
+GET /api/v1/farmer/finances
+- Quyền: Yêu cầu xác thực, farmer
+- Dữ liệu phản hồi:
+  - `balance`
+  - `stats.totalIncome`
+  - `stats.completedContractValue`
+  - `stats.pendingAmount`
+  - `stats.totalTransactions`
+  - `transactions[]`
+
+3.5. Enterprise API
+
+GET /api/v1/enterprise/dashboard
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu phản hồi:
+  - `stats`:
+    - `totalContractValue`
+    - `activeContracts`
+    - `pendingContracts`
+    - `completedContracts`
+    - `totalContracts`
+    - `balance`
+    - `totalDeposited`
+    - `totalReleased`
+    - `reputationScore`
+    - `totalSuppliers`
+  - `recentContracts[]`
+
+GET /api/v1/enterprise/suppliers
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu phản hồi:
+  - `suppliers[]`
+  - `total`
+- Mỗi supplier có:
+  - `id`, `name`, `email`, `phone`
+  - `reputationScore`, `isActive`
+  - `contractCount`, `totalValue`
+
+GET /api/v1/enterprise/contracts
+- Quyền: Yêu cầu xác thực, enterprise
+- Tham số query:
+  - `status` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `contracts[]`
+  - `total`
+
+GET /api/v1/enterprise/warehouse
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu phản hồi:
+  - `items[]`
+  - `total`
+- Mỗi item:
+  - `productName`
+  - `quantity`
+  - `unit`
+  - `totalValue`
+  - `contractCount`
+
+GET /api/v1/enterprise/analytics
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu phản hồi:
+  - `overview`:
+    - `totalSpending`
+    - `avgContractValue`
+    - `totalContracts`
+    - `totalEscrowDeposited`
+  - `monthlyData[]`
+  - `productDistribution[]`
+  - `statusSummary`
+
+GET /api/v1/enterprise/orders
+- Quyền: Yêu cầu xác thực, enterprise
+- Tham số query:
+  - `status` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `orders[]`
+  - `total`
+- Mỗi order có:
+  - `contractCode`, `farmerName`, `productName`, `quantity`, `value`
+  - `status`
+  - `deliveryDate`
+  - `escrowStatus`
+  - `currentMilestone`
+  - `currentMilestoneStep`
+  - `currentMilestoneRequiredBy`
+  - `completedSteps`, `totalSteps`
+  - `enterpriseCanConfirm`
+  - `enterpriseConfirmStep`
+  - `disputeStep`
+  - `waitingFor`
+
+3.6. Product API
+
+GET /api/v1/products
+- Quyền: Công khai
+- Tham số query:
+  - `category`
+  - `region`
+  - `type`
+  - `search`
+  - `page`
+  - `limit`
+  - `sort`
+- Dữ liệu phản hồi:
+  - `products[]`
+  - `total`
+  - `page`
+  - `totalPages`
+
+GET /api/v1/products/my
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `products[]`
+  - `total`
+
+GET /api/v1/products/region/:region
+- Quyền: Công khai
+- Tham số đường dẫn:
+  - `region = north | central | south`
+- Dữ liệu phản hồi:
+  - `products[]`
+
+GET /api/v1/products/:id
+- Quyền: Công khai
+- Dữ liệu phản hồi:
+  - `product`
+
+GET /api/v1/products/:id/similar
+- Quyền: Công khai
+- Tham số query:
+  - `limit` (tùy chọn, mặc định 4)
+- Dữ liệu phản hồi:
+  - `products[]`
+
+GET /api/v1/products/:id/reviews
+- Quyền: Công khai
+- Dữ liệu phản hồi:
+  - `reviews[]`
+
+POST /api/v1/products/:id/reviews
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu gửi lên:
+  - `rating`
+  - `text`
+- Dữ liệu phản hồi:
+  - `review`
+
+POST /api/v1/products
+- Quyền: Yêu cầu xác thực, farmer
+- Body chính:
+  - `name`
+  - `location`
+  - `farm`
+  - `image`
+  - `priceMin`
+  - `priceMax`
+  - `unit`
+  - `expectedDate`
+  - `progress`
+  - `remaining`
+  - `totalQuantity`
+  - `note`
+  - `badge`
+  - `category`
+  - `region`
+  - `type`
+  - `description`
+  - `nutritionInfo`
+  - `certifications[]`
+  - `commitments[]`
+- Dữ liệu phản hồi:
+  - `product`
+
+PUT /api/v1/products/:id
+- Quyền: Yêu cầu xác thực, owner
+- Dữ liệu gửi lên:
+  - các trường được phép update giống create.
+- Dữ liệu phản hồi:
+  - `product`
+
+DELETE /api/v1/products/:id
+- Quyền: Yêu cầu xác thực, owner
+- Hành vi:
+  - soft delete qua `isActive=false`
+- Phản hồi:
+  - message xóa thành công
+
+3.7. Contract API
+
+POST /api/v1/contracts
+- Quyền: Yêu cầu xác thực
+- Body có thể gửi:
+  - `farmerId`
+  - `enterpriseId`
+  - `farmerName`
+  - `enterpriseName`
+  - `productName`
+  - `productId`
+  - `quantity`
+  - `unit`
+  - `pricePerUnit`
+  - `depositPercentage`
+  - `paymentTerms`
+  - `deliveryDate`
+  - `notes`
+  - `insuranceFarmer`
+  - `insuranceEnterprise`
+  - `riskSharingTerms`
+- Dữ liệu phản hồi:
+  - `contract`
+
+GET /api/v1/contracts
+- Quyền: Yêu cầu xác thực
+- Tham số query:
+  - `status` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `contracts[]`
+  - `total`
+
+GET /api/v1/contracts/:id
+- Quyền: Yêu cầu xác thực, chỉ farmer/enterprise thuộc hợp đồng
+- Dữ liệu phản hồi:
+  - `contract`
+
+POST /api/v1/contracts/:id/sign
+- Quyền: Yêu cầu xác thực, đúng vai trò trong hợp đồng
+- Dữ liệu phản hồi:
+  - `contract`
+- Hiệu ứng nghiệp vụ:
+  - Nếu đã đủ 2 chữ ký, contract chuyển `approved` và tạo escrow.
+
+POST /api/v1/contracts/:id/cancel
+- Quyền: Yêu cầu xác thực, 1 trong 2 bên
+- Dữ liệu gửi lên:
+  - `reason`
+- Dữ liệu phản hồi:
+  - `contract`
+
+POST /api/v1/contracts/:id/reject
+- Quyền: Yêu cầu xác thực, farmer
+- Dữ liệu gửi lên:
+  - `reason`
+- Dữ liệu phản hồi:
+  - `contract`
+
+3.8. Escrow API
+
+GET /api/v1/escrow/balance
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `balance`
+  - `fullName`
+  - `role`
+
+GET /api/v1/escrow/disputes
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `disputes[]`
+  - `total`
+
+POST /api/v1/escrow/disputes/:id/resolve
+- Quyền: Yêu cầu xác thực (hiện tại, chưa giới hạn admin)
+- Dữ liệu gửi lên:
+  - `resolution = farmer | enterprise`
+  - `adminNotes`
+- Dữ liệu phản hồi:
+  - `dispute`
+
+POST /api/v1/escrow
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `contractId`
+- Dữ liệu phản hồi:
+  - `escrow`
+
+GET /api/v1/escrow
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `escrows[]`
+  - `total`
+
+GET /api/v1/escrow/contract/:contractId
+- Quyền: Yêu cầu xác thực, 1 trong 2 bên của contract
+- Dữ liệu phản hồi:
+  - `escrow`
+
+GET /api/v1/escrow/:id
+- Quyền: Yêu cầu xác thực, 1 trong 2 bên của escrow
+- Dữ liệu phản hồi:
+  - `escrow`
+
+POST /api/v1/escrow/:id/deposit
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu gửi lên:
+  - `amount`
+- Dữ liệu phản hồi:
+  - `escrow`
+- Hiệu ứng nghiệp vụ:
+  - Trừ tiền từ `virtualBalance` enterprise.
+  - milestone 1 hoàn thành.
+  - contract chuyển `active`.
+
+POST /api/v1/escrow/:id/farmer-confirm
+- Quyền: Yêu cầu xác thực, farmer
+- Dữ liệu gửi lên:
+  - `milestoneStep`
+  - `evidence`
+- Dữ liệu phản hồi:
+  - `escrow`
+
+POST /api/v1/escrow/:id/enterprise-confirm
+- Quyền: Yêu cầu xác thực, enterprise
+- Dữ liệu gửi lên:
+  - `milestoneStep`
+  - `evidence`
+- Dữ liệu phản hồi:
+  - `escrow`
+
+POST /api/v1/escrow/:id/dispute
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `milestoneStep`
+  - `reason`
+  - `evidence[]`
+- Dữ liệu phản hồi:
+  - `dispute`
+
+3.9. Payment API
+
+POST /api/v1/payment/webhook
+- Quyền: Công khai
+- Mục đích:
+  - SePay callback.
+- Body SePay chính:
+  - `id`
+  - `gateway`
+  - `transactionDate`
+  - `accountNumber`
+  - `code`
+  - `content`
+  - `transferType`
+  - `transferAmount`
+  - `accumulated`
+  - `subAccount`
+  - `referenceCode`
+  - `description`
+- Phản hồi:
+  - `{ success: true }`
+
+GET /api/v1/payment/wallet
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `balance`
+  - `fullName`
+  - `role`
+  - `stats.totalTopup`
+  - `stats.totalSpent`
+  - `recentTransactions[]`
+
+GET /api/v1/payment/transactions
+- Quyền: Yêu cầu xác thực
+- Tham số query:
+  - `page`
+  - `limit`
+  - `type`
+- Dữ liệu phản hồi:
+  - `transactions[]`
+  - `pagination`
+
+POST /api/v1/payment/topup
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `amount`
+  - `description`
+- Dữ liệu phản hồi:
+  - `paymentMethod`
+  - `orderCode`
+  - `transferCode`
+  - `transactionId`
+  - `amount`
+  - `expiresInMinutes`
+  - `bankInfo.bankCode`
+  - `bankInfo.accountNumber`
+  - `bankInfo.accountName`
+  - `qrCodeUrl`
+  - `webhookUrl`
+  - `note`
+
+POST /api/v1/payment/topup/verify
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `orderCode`
+- Dữ liệu phản hồi khi thành công:
+  - `success=true`
+  - `transaction`
+  - `newBalance`
+- Dữ liệu phản hồi khi chưa hoàn tất:
+  - `success=false`
+  - `status`
+  - `transaction`
+  - `message`
+
+POST /api/v1/payment/demo-topup
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `amount`
+- Dữ liệu phản hồi:
+  - `transaction`
+  - `newBalance`
+
+POST /api/v1/payment/cancel
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `orderCode`
+- Dữ liệu phản hồi:
+  - transaction đã đổi sang `cancelled`
+
+3.10. Weather API
+
+GET /api/v1/weather/current
+- Quyền: Yêu cầu xác thực
+- Tham số query:
+  - `province` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `temp`, `humidity`, `windSpeed`, `rain1h`, `rain24h`, `description`, `icon`
+
+GET /api/v1/weather/forecast
+- Quyền: Yêu cầu xác thực
+- Tham số query:
+  - `province` (tùy chọn)
+- Dữ liệu phản hồi:
+  - `forecast[]` gồm `date`, `temp`, `tempMin`, `tempMax`, `humidity`, `description`, `icon`, `windSpeed`, `rain`
+
+GET /api/v1/weather/thresholds
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `extremeHeatTemp`
+  - `extremeColdTemp`
+  - `heavyRainMm`
+  - `strongWindKmh`
+  - `droughtMm`
+  - `droughtDays`
+
+GET /api/v1/weather/alerts
+- Quyền: Yêu cầu xác thực
+- Tham số query:
+  - `page`
+  - `limit`
+- Phản hồi:
+  - `data = alerts[]`
+  - `pagination`
+
+GET /api/v1/weather/alerts/unread-count
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `count`
+
+PATCH /api/v1/weather/alerts/:id/read
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - alert đã được mark read
+
+PATCH /api/v1/weather/alerts/read-all
+- Quyền: Yêu cầu xác thực
+- Phản hồi:
+  - `success`, `message`
+
+3.11. Notification API
+
+GET /api/v1/notifications
+- Quyền: Yêu cầu xác thực
+- Tham số query:
+  - `page`
+  - `limit`
+- Phản hồi:
+  - `data = notifications[]`
+  - `unreadCount`
+  - `pagination`
+
+GET /api/v1/notifications/unread-count
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `count`
+
+PATCH /api/v1/notifications/:id/read
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `notification`
+
+PATCH /api/v1/notifications/read-all
+- Quyền: Yêu cầu xác thực
+- Phản hồi:
+  - `success`, `message`
+
+3.12. Messaging API
+
+GET /api/v1/messaging/conversations
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - mảng conversation đã map sẵn:
+    - `_id`
+    - `partner`
+    - `lastMessage`
+    - `lastMessageAt`
+
+POST /api/v1/messaging/conversations
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `partnerId`
+- Dữ liệu phản hồi:
+  - conversation mới hoặc đã tồn tại
+
+GET /api/v1/messaging/conversations/:id/messages
+- Quyền: Yêu cầu xác thực, là participant của conversation
+- Tham số query:
+  - `page`
+  - `limit`
+- Dữ liệu phản hồi:
+  - `messages[]`
+
+POST /api/v1/messaging/conversations/:id/messages
+- Quyền: Yêu cầu xác thực, là participant của conversation
+- Dữ liệu gửi lên:
+  - `text`
+- Dữ liệu phản hồi:
+  - `message`
+
+3.13. Upload API
+
+POST /api/v1/upload
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `fileName`
+  - `fileData` (base64 raw, không kèm prefix `data:image/...`)
+  - `fileType`
+- Ràng buộc:
+  - file type: `jpeg/png/webp/pdf`
+  - file size tối đa 5MB
+- Dữ liệu phản hồi:
+  - `url`
+  - `originalName`
+  - `size`
+
+3.14. Partner Rating API
+
+GET /api/v1/partner-ratings/eligible-partners
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `partners[]`
+- Mỗi partner gồm:
+  - `partnerId`, `partnerName`, `partnerRole`
+  - `reputationScore`, `totalRatings`
+  - `contracts[]` có `contractId`, `contractCode`, `productName`, `status`, `deliveryDate`
+
+GET /api/v1/partner-ratings/mine
+- Quyền: Yêu cầu xác thực
+- Dữ liệu phản hồi:
+  - `givenRatings[]`
+  - `receivedRatings[]`
+
+POST /api/v1/partner-ratings
+- Quyền: Yêu cầu xác thực
+- Dữ liệu gửi lên:
+  - `contractId`
+  - `revieweeId`
+  - `criteria`
+  - `comment`
+- Quy tắc:
+  - farmer chỉ đánh giá enterprise
+  - enterprise chỉ đánh giá farmer
+  - mỗi contract mỗi reviewer chỉ được đánh giá 1 lần
+- Dữ liệu phản hồi:
+  - `rating`
+
+========================================================================
+4. HƯỚNG DẪN CÀI ĐẶT & CHẠY
+========================================================================
+
+4.1. Điều kiện tiên quyết
+- Node.js: khuyến nghị 18+ hoặc 20+.
+- npm.
+- MongoDB local hoặc MongoDB Atlas.
+- Nếu dùng SePay thật:
+  - Cần có URL public cho backend để nhận webhook.
+- Nếu dùng email thật:
+  - Cần có `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`.
+
+4.2. Cấu trúc thư mục
+- `be`: backend API
+- `fe`: frontend React
+- `PROJECT_OVERVIEW.txt`: tài liệu cũ, không nên xem là source of truth
+
+4.3. Cài đặt dependencies
+- Backend:
+  - `cd be`
+  - `npm install`
+- Frontend:
+  - `cd fe`
+  - `npm install`
+
+4.4. Cấu hình backend
+- Copy file:
+  - `be/.env.example` -> `be/.env`
+- Biến tối thiểu cần có:
+  - `NODE_ENV=development`
+  - `PORT=8080`
+  - `API_PREFIX=/api/v1`
+  - `MONGODB_URI=...`
+  - `JWT_SECRET=...`
+  - `JWT_REFRESH_SECRET=...`
+  - `FRONTEND_URL=http://localhost:3000`
+- Biến bổ sung nếu dùng email:
+  - `SMTP_HOST`
+  - `SMTP_PORT`
+  - `SMTP_USER`
+  - `SMTP_PASS`
+  - `SMTP_FROM`
+- Biến bổ sung nếu dùng thời tiết:
+  - `OPENWEATHER_API_KEY` hoặc `OWM_API_KEY` hoặc `WEATHER_API_KEY`
+  - Nếu không có, hệ thống fallback sang Open-Meteo.
+- Biến bổ sung nếu dùng SePay:
+  - `SEPAY_MERCHANT_ID`
+  - `SEPAY_SECRET_KEY` hoặc `SEPAY_API_KEY`
+  - `SEPAY_ACCOUNT_NUMBER`
+  - `SEPAY_BANK_CODE`
+  - `SEPAY_ACCOUNT_NAME`
+  - `PUBLIC_API_URL` hoặc `BACKEND_PUBLIC_URL` hoặc `APP_PUBLIC_URL`
+  - `SEPAY_WEBHOOK_SECRET` (tùy chọn nhưng nên có)
+
+4.5. Cấu hình frontend
+- Copy file:
+  - `fe/.env.example` -> `fe/.env`
+- Biến cần có:
+  - `REACT_APP_API_URL=http://localhost:8080/api/v1`
+  - `PORT=3000`
+- Lưu ý:
+  - `fe/.env.example` đã đồng bộ `REACT_APP_API_URL=http://localhost:8080/api/v1` theo runtime.
+
+4.6. Chạy development
+- Backend:
+  - `cd be`
+  - `npm run dev`
+- Frontend:
+  - `cd fe`
+  - `npm start`
+- Địa chỉ truy cập:
+  - Frontend: `http://localhost:3000`
+  - Backend health: `http://localhost:8080/health`
+  - Backend API base: `http://localhost:8080/api/v1`
+
+4.7. Build production
+- Backend:
+  - `cd be`
+  - `npm run build`
+  - `npm start`
+- Frontend:
+  - `cd fe`
+  - `npm run build`
+  - Deploy nội dung thư mục `fe/build` lên static hosting
+
+4.8. Script có sẵn
+- `be/package.json`
+  - `npm run dev`
+  - `npm run build`
+  - `npm start`
+  - `npm run seed`
+  - `npm test`
+  - `npm run lint`
+  - `npm run format`
+- `fe/package.json`
+  - `npm start`
+  - `npm run build`
+  - `npm test`
+
+4.9. Seed data
+- Backend có script:
+  - `npm run seed`
+- Tệp seed:
+  - `be/src/seed/products.seed.ts`
+- Mục đích:
+  - Tạo dữ liệu sản phẩm mẫu.
+
+4.10. Lưu ý deployment
+- SePay webhook chỉ hoạt động khi backend có URL public.
+- CORS cần cho phép đúng `FRONTEND_URL`.
+- Upload hiện đang lưu local disk, cần quản lý persistent storage khi deploy server thật.
+- Build frontend hiện sử dụng CRA, build folder sẵn sàng cho serve static.
+- Cron jobs:
+  - Weather cron: mỗi 6 giờ.
+  - Shipping reminder cron: mỗi 1 giờ.
+
+4.11. Lưu ý hiện trạng quan trọng khi chạy project
+- `be/.env` và `fe/.env` hiện tại đã khớp runtime 8080/3000.
+- `be/.env.example` và `fe/.env.example` đã khớp runtime 8080/3000.
+- `proxy` trong `fe/package.json` đã khớp code runtime ở `http://localhost:8080`.
+- Frontend đã bỏ đoạn xóa `accessToken/user` khi khởi động để giữ session.
+
+========================================================================
+5. KẾT QUẢ CHẠY
+========================================================================
+
+5.1. Kết quả xác minh kỹ thuật thực tế
+- Backend build: OK
+  - Lệnh đã chạy: `npm run build` trong thư mục `be`
+  - Kết quả: `tsc` thành công
+- Frontend build: OK
+  - Lệnh đã chạy: `npm run build` trong thư mục `fe`
+  - Kết quả: `react-scripts build` thành công
+- Health endpoint: OK
+  - `GET /health` trả về `status=success`
+- API sản phẩm công khai: OK
+  - `GET /api/v1/products` trả về thành công
+  - Số sản phẩm active quan sát được: 13
+
+5.2. Những gì đã xác nhận và những gì chưa chạy tay
+Đã xác nhận
+- Server backend hoạt động.
+- Database kết nối được.
+- API công khai có dữ liệu thật.
+- Frontend build production thành công.
+
+Chưa chạy tay tự động trong lần khảo sát này
+- Đăng ký/đăng nhập bằng tài khoản mới.
+- CRUD sản phẩm bằng thao tác giao diện.
+- Luồng ký hợp đồng đầy đủ bằng dữ liệu thật.
+- Luồng SePay thực.
+- Luồng dispute và resolve dispute.
+
+Lý do
+- Để tránh ghi đè dữ liệu thật trong hệ thống đang dùng và tránh tạo tài khoản/giao dịch ảo ngoài ý muốn.
+- Tuy nhiên, code và API route cho các flow này đã được đọc và mô tả chi tiết ở các mục trên.
+
+5.3. Danh mục ảnh chụp minh họa cần nộp
+Gợi ý lưu ảnh theo đúng tên để đưa vào báo cáo Word/PDF:
+
+`01_homepage.png`
+- Nội dung cần chụp:
+  - Trang chủ.
+  - Hero section + navbar.
+- Mục tiêu chứng minh:
+  - Hệ thống có giao diện marketing/công khai.
+
+`02_login.png`
+- Nội dung cần chụp:
+  - Màn hình `/auth`.
+  - Ô nhập email/phone, password.
+- Mục tiêu chứng minh:
+  - Chức năng đăng nhập.
+
+`03_register_farmer.png`
+- Nội dung cần chụp:
+  - Màn hình `/register` với role farmer.
+- Mục tiêu chứng minh:
+  - Đăng ký theo vai trò nông dân.
+
+`04_register_enterprise.png`
+- Nội dung cần chụp:
+  - Màn hình `/register` với role enterprise.
+- Mục tiêu chứng minh:
+  - Đăng ký theo vai trò doanh nghiệp.
+
+`05_products_list.png`
+- Nội dung cần chụp:
+  - `/products`.
+  - Danh sách sản phẩm, bộ lọc, tìm kiếm.
+- Mục tiêu chứng minh:
+  - Chức năng duyệt công khai.
+
+`06_product_detail.png`
+- Nội dung cần chụp:
+  - `/products/:id`.
+  - Chi tiết sản phẩm + khu vực review/similar products.
+- Mục tiêu chứng minh:
+  - Chi tiết bài đăng và điểm vào hợp đồng.
+
+`07_farmer_dashboard.png`
+- Nội dung cần chụp:
+  - `/farmer`.
+  - Số liệu tổng quan nông dân.
+- Mục tiêu chứng minh:
+  - Phân quyền farmer.
+
+`08_enterprise_dashboard.png`
+- Nội dung cần chụp:
+  - `/enterprise`.
+  - Số liệu tổng quan doanh nghiệp.
+- Mục tiêu chứng minh:
+  - Phân quyền enterprise.
+
+`09_product_create.png`
+- Nội dung cần chụp:
+  - Form thêm sản phẩm của farmer.
+- Mục tiêu chứng minh:
+  - Chức năng Create trong CRUD sản phẩm.
+
+`10_product_edit.png`
+- Nội dung cần chụp:
+  - Form sửa sản phẩm.
+- Mục tiêu chứng minh:
+  - Chức năng Update trong CRUD sản phẩm.
+
+`11_product_delete_or_hidden.png`
+- Nội dung cần chụp:
+  - Trước và sau khi xóa sản phẩm hoặc product biến mất khỏi list.
+- Mục tiêu chứng minh:
+  - Chức năng Delete/soft delete.
+
+`12_contract_flow_step1.png`
+- Nội dung cần chụp:
+  - `/contract-flow` bước nhập thông tin.
+- Mục tiêu chứng minh:
+  - Tạo hợp đồng.
+
+`13_contract_signed.png`
+- Nội dung cần chụp:
+  - Bước hoàn tất sau khi ký.
+- Mục tiêu chứng minh:
+  - Quy trình ký hợp đồng.
+
+`14_wallet_topup.png`
+- Nội dung cần chụp:
+  - Màn hình ví / nạp tiền.
+  - QR SePay hoặc demo topup.
+- Mục tiêu chứng minh:
+  - Ví ảo và nạp tiền.
+
+`15_escrow_milestones.png`
+- Nội dung cần chụp:
+  - Trang escrow / milestone / deposit / confirm.
+- Mục tiêu chứng minh:
+  - Thanh toán trung gian.
+
+`16_messaging.png`
+- Nội dung cần chụp:
+  - Danh sách conversation + khung chat.
+- Mục tiêu chứng minh:
+  - Nhắn tin giữa hai bên.
+
+`17_notifications.png`
+- Nội dung cần chụp:
+  - Bell thông báo và dropdown.
+- Mục tiêu chứng minh:
+  - Hệ thống thông báo in-app.
+
+`18_weather_alerts.png`
+- Nội dung cần chụp:
+  - Khu vực thời tiết / cảnh báo.
+- Mục tiêu chứng minh:
+  - Tính năng weather alert.
+
+`19_partner_rating.png`
+- Nội dung cần chụp:
+  - Form đánh giá đối tác.
+- Mục tiêu chứng minh:
+  - Đánh giá đối tác sau hợp tác.
+
+`20_role_redirect.png`
+- Nội dung cần chụp:
+  - Trường hợp user role sai bị redirect khỏi route không hợp lệ.
+- Mục tiêu chứng minh:
+  - Phân quyền route frontend.
+
+5.4. Kịch bản demo để chụp ảnh và thuyết trình
+
+Kịch bản 1 - Guest
+- Vào homepage.
+- Mở product list.
+- Mở chi tiết sản phẩm.
+- Thử vào route protected -> bị yêu cầu đăng nhập.
+
+Kịch bản 2 - Farmer
+- Đăng nhập farmer.
+- Vào dashboard farmer.
+- Tạo sản phẩm mới.
+- Sửa sản phẩm.
+- Xóa sản phẩm.
+- Xem hợp đồng/escrow/thời tiết/thông báo.
+
+Kịch bản 3 - Enterprise
+- Đăng nhập enterprise.
+- Vào dashboard enterprise.
+- Xem chi tiết sản phẩm.
+- Tạo contract.
+- Xem ví ảo / nạp demo / topup.
+- Xem messaging và notification.
+
+Kịch bản 4 - Phân quyền
+- Đăng nhập farmer, vào `/enterprise` -> bị redirect về `/farmer`.
+- Đăng nhập enterprise, vào `/farmer` -> bị redirect về `/enterprise`.
+
+========================================================================
+6. CODE MINH HỌA
+========================================================================
+
+6.1. Mẫu auth response kèm refresh token cookie
+Nguồn: `be/src/controllers/auth.controller.ts`
+
+```ts
+const sendAuthResponse = (
+  res: Response,
+  statusCode: number,
+  message: string,
+  user: any,
+  tokens: AuthTokens,
+  cookieMaxAge: number = THIRTY_DAYS_MS
+) => {
+  res.cookie(REFRESH_TOKEN_COOKIE, tokens.refreshToken, getRefreshTokenCookieOptions(cookieMaxAge));
+  res.status(statusCode).json({
+    success: true,
+    status: 'success',
+    message,
+    data: { user, accessToken: tokens.accessToken },
+  });
+};
+```
+
+Giải thích
+- Access token được trả về trong JSON để frontend gắn vào `Authorization` header.
+- Refresh token không trả thẳng ra `localStorage` mà được giữ trong `httpOnly cookie`.
+- Cơ chế này giảm rủi ro lộ refresh token qua JavaScript phía client.
+
+6.2. Axios interceptor tự động refresh access token
+Nguồn: `fe/src/services/api.js`
+
+```js
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const isUnauthorized = error.response?.status === UNAUTHORIZED_STATUS;
+    const hasNotRetried = !originalRequest?._retry;
+    const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh-token');
+
+    if (isUnauthorized && hasNotRetried && !isRefreshRequest) {
+      originalRequest._retry = true;
+
+      try {
+        const accessToken = await refreshAccessToken();
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return api(originalRequest);
+      } catch {
+        clearStoredAuth();
+        redirectToLogin();
+        return Promise.reject(error);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+```
+
+Giải thích
+- Khi access token hết hạn, frontend thử gọi `/auth/refresh-token`.
+- Nếu refresh thành công, request cũ được gửi lại tự động.
+- Nếu refresh thất bại, session bị xóa và redirect về `/auth`.
+
+6.3. Tính toán tài chính hợp đồng
+Nguồn: `be/src/services/contract.service.ts`
+
+```ts
+private static calculateFinancials(body: CreateContractBody): ContractFinancials {
+  const totalValue = body.quantity * body.pricePerUnit * UNIT_TO_KG[body.unit];
+  const commission = (totalValue * CONTRACT_CONFIG.COMMISSION_RATE) / 100;
+  const depositAmount = (totalValue * body.depositPercentage) / 100;
+
+  return { totalValue, commission, depositAmount };
+}
+```
+
+Giải thích
+- `totalValue` được tính theo `quantity * pricePerUnit *` hệ số quy đổi đơn vị.
+- `commission` hiện đang cố định 3%.
+- `depositAmount` phụ thuộc `depositPercentage` của hợp đồng.
+- Đây là trung tâm của dòng nghiệp vụ `contract -> escrow -> wallet`.
+
+6.4. Sinh milestone escrow động theo `paymentTerms`
+Nguồn: `be/src/services/escrow.service.ts`
+
+```ts
+const PCT_MAP: Record<string, [number, number, number, number, number]> = {
+  '50_50':        [0, 0, 50, 50, 0],
+  '30_70':        [0, 0, 30, 60, 10],
+  '100_delivery': [0, 0, 100, 0, 0],
+  '100_upfront':  [100, 0, 0, 0, 0],
+  'custom':       [0, 0, 40, 50, 10],
+};
+```
+
+Giải thích
+- Mỗi phương thức thanh toán sẽ sinh ra tỷ lệ giải ngân khác nhau theo 5 bước.
+- Đây là phần rất quan trọng vì nó ảnh hưởng trực tiếp đến dòng tiền trong escrow.
+- Frontend và backend đều phải thống nhất logic này để tránh sai lệch.
+
+6.5. Tạo topup SePay và trả thông tin QR
+Nguồn: `be/src/services/payment.service.ts`
+
+```ts
+return {
+  paymentMethod: 'sepay',
+  orderCode,
+  transferCode,
+  transactionId: transaction._id,
+  amount,
+  expiresInMinutes: 15,
+  bankInfo: {
+    bankCode: sepayConfig.bankCode,
+    accountNumber: sepayConfig.accountNumber,
+    accountName: sepayConfig.accountName,
+  },
+  qrCodeUrl: buildQrCodeUrl(sepayConfig, amount, transferCode),
+  webhookUrl: sepayConfig.webhookUrl,
+  note: 'Chuyển khoản đúng số tiền và đúng nội dung để hệ thống tự động cộng ví.',
+};
+```
+
+Giải thích
+- Backend không redirect người dùng đi thanh toán như PayOS cũ, mà trả thông tin để frontend hiện QR/manual transfer.
+- `orderCode` và `transferCode` là khóa để webhook map giao dịch vào user.
+- Luồng này phù hợp với kiểu nạp tiền chuyển khoản nội địa.
+
+6.6. Guard route theo vai trò trên frontend
+Nguồn: `fe/src/Component/ProtectedRoute/ProtectedRoute.jsx`
+
+```jsx
+if (!isLoggedIn) {
+  return <Navigate to={ROUTES.AUTH} replace />;
+}
+
+if (allowedRoles.length > 0 && user) {
+  if (!allowedRoles.includes(user.role)) {
+    if (user.role === 'farmer') {
+      return <Navigate to={ROUTES.FARMER} replace />;
+    } else if (user.role === 'enterprise') {
+      return <Navigate to={ROUTES.ENTERPRISE} replace />;
+    }
+  }
+}
+```
+
+Giải thích
+- Route protected được bảo vệ theo 2 lớp:
+  - Chưa đăng nhập -> về `/auth`
+  - Đăng nhập nhưng sai role -> redirect về dashboard đúng role
+- Đây là đoạn code nên chụp/giảng giải khi bảo vệ phần phân quyền giao diện.
+
+6.7. Kiểm tra ngưỡng thời tiết
+Nguồn: `be/src/services/weather.service.ts`
+
+```ts
+if (weather.temp > THRESHOLDS.extremeHeatTemp + 5) {
+  alerts.push({ type: 'extreme_heat', severity: 'critical', detail: `Nhiệt độ ${weather.temp} độ C vượt ngưỡng ${THRESHOLDS.extremeHeatTemp} độ C` });
+} else if (weather.temp > THRESHOLDS.extremeHeatTemp) {
+  alerts.push({ type: 'extreme_heat', severity: 'warning', detail: `Nhiệt độ ${weather.temp} độ C vượt ngưỡng ${THRESHOLDS.extremeHeatTemp} độ C` });
+}
+```
+
+Giải thích
+- Hệ thống không chỉ lấy dữ liệu thời tiết để hiển thị, mà còn biến dữ liệu thành cảnh báo nghiệp vụ.
+- Cùng một loại sự kiện có 2 cấp độ: `warning` và `critical`.
+
+========================================================================
+7. NHẬN XÉT HIỆN TRẠNG VÀ CÁC ĐIỂM CẦN ƯU TIÊN
+========================================================================
+
+7.1. Điểm mạnh của project
+- Có đầy đủ 2 vai trò `farmer` và `enterprise`.
+- Kiến trúc backend/frontend tách rõ.
+- Escrow có logic milestone khá đầy đủ, gần sát nghiệp vụ.
+- Có wallet + topup + webhook groundwork cho payment.
+- Có weather alert, notification, messaging, partner rating.
+- API sản phẩm công khai đang chạy được và có dữ liệu mẫu.
+- Build backend/frontend đều thành công.
+
+7.2. Các vấn đề kỹ thuật/rủi ro quan trọng cần lưu ý
+
+Đã xử lý (đã cập nhật code)
+- [Mức độ cao] Frontend giữ session khi khởi động.
+  - File: `fe/src/index.js`
+- [Mức độ cao] Resolve dispute đã giới hạn admin.
+  - File: `be/src/routes/escrow.routes.ts`, `be/src/controllers/escrow.controller.ts`
+- [Mức độ cao] PaymentTransaction đã ghi nhận escrow deposit/release/refund.
+  - File: `be/src/services/escrow.service.ts`
+- [Mức độ cao] Công thức totalValue đã đồng nhất theo `UNIT_TO_KG`.
+  - File: `be/src/models/Contract.model.ts`, `be/src/services/contract.service.ts`
+- [Mức độ trung bình] Profile page đã khớp `AuthContext` và response `data.user`.
+  - File: `fe/src/Component/Profile/Profile.jsx`, `fe/src/contexts/AuthContext.jsx`
+- [Mức độ trung bình] Drought detection đã được triển khai.
+  - File: `be/src/services/weather.service.ts`
+- [Mức độ trung bình] Notification icon map đã hỗ trợ `weather_alert` và `insurance`.
+  - File: `fe/src/Component/NotificationBell/NotificationBell.jsx`
+- [Mức độ trung bình] Tài liệu và `.env.example` đã đồng bộ theo runtime.
+  - File: `be/.env.example`, `fe/.env.example`
+
+Còn cần lưu ý / tiếp tục nâng cấp
+- Dashboard vẫn lớn; đã tách các phần chính (Farmer: Mùa vụ + Thời tiết, Enterprise: Tổng quan + Thời tiết) nhưng các tab còn lại vẫn dày.
+- Test suite đã có test cơ bản (totalValue, escrow transaction, topup), cần mở rộng coverage.
+
+7.3. Thứ tự ưu tiên để nâng cấp
+Hoàn thành
+- Fix auth persistence.
+- Siết quyền resolve dispute.
+- Đồng bộ ghi nhận `PaymentTransaction` với luồng escrow.
+- Sửa công thức `totalValue` cho contract và viết test.
+- Sửa Profile page để khớp context/API response.
+- Sửa icon mapping notification `weather_alert`.
+- Hoàn thiện drought detection.
+- Cập nhật tài liệu, `.env.example`, `proxy`.
+
+Còn ưu tiên tiếp theo
+- Tách dashboard thành các module nhỏ hơn (tiếp tục hoàn thiện các tab còn lại).
+- Mở rộng test coverage cho các flow hợp đồng, escrow, thanh toán và notification.
+
+========================================================================
+8. DANH MỤC TỆP NGUỒN QUAN TRỌNG ĐỂ THAM CHIẾU
+========================================================================
+
+Backend core
+- `be/src/server.ts`
+- `be/src/app.ts`
+- `be/src/config/database.ts`
+- `be/src/constants/index.ts`
+
+Backend model
+- `be/src/models/User.model.ts`
+- `be/src/models/Product.model.ts`
+- `be/src/models/Review.model.ts`
+- `be/src/models/Contract.model.ts`
+- `be/src/models/Escrow.model.ts`
+- `be/src/models/Dispute.model.ts`
+- `be/src/models/PaymentTransaction.model.ts`
+- `be/src/models/Notification.model.ts`
+- `be/src/models/WeatherAlert.model.ts`
+- `be/src/models/Message.model.ts`
+- `be/src/models/PartnerRating.model.ts`
+
+Backend service
+- `be/src/services/auth.service.ts`
+- `be/src/services/product.service.ts`
+- `be/src/services/contract.service.ts`
+- `be/src/services/escrow.service.ts`
+- `be/src/services/payment.service.ts`
+- `be/src/services/weather.service.ts`
+- `be/src/services/notification.service.ts`
+- `be/src/services/partner-rating.service.ts`
+
+Backend route
+- `be/src/routes/auth.routes.ts`
+- `be/src/routes/farmer.routes.ts`
+- `be/src/routes/enterprise.routes.ts`
+- `be/src/routes/product.routes.ts`
+- `be/src/routes/contract.routes.ts`
+- `be/src/routes/escrow.routes.ts`
+- `be/src/routes/payment.routes.ts`
+- `be/src/routes/weather.routes.ts`
+- `be/src/routes/notification.routes.ts`
+- `be/src/routes/messaging.routes.ts`
+- `be/src/routes/upload.routes.ts`
+- `be/src/routes/partner-rating.routes.ts`
+
+Frontend core
+- `fe/src/index.js`
+- `fe/src/App.js`
+- `fe/src/contexts/AuthContext.jsx`
+- `fe/src/services/api.js`
+- `fe/src/services/auth.service.js`
+
+Frontend screen / feature
+- `fe/src/Component/ProtectedRoute/ProtectedRoute.jsx`
+- `fe/src/Component/Auth/Auth.jsx`
+- `fe/src/Component/Register/Register.jsx`
+- `fe/src/Component/AllProducts/AllProducts.jsx`
+- `fe/src/Component/ProductDetail/ProductDetail.jsx`
+- `fe/src/Component/ContractFlow/ContractFlow.jsx`
+- `fe/src/Component/Messaging/Messaging.jsx`
+- `fe/src/Component/WalletPayment/WalletPayment.jsx`
+- `fe/src/Component/Profile/Profile.jsx`
+- `fe/src/Component/NotificationBell/NotificationBell.jsx`
+- `fe/src/Component/FarmerDashboard/FarmerDashboard.jsx`
+- `fe/src/Component/EnterpriseDashboard/EnterpriseDashboard.jsx`
+
+========================================================================
+KẾT LUẬN
+========================================================================
+
+PreOnic là một project có độ phức tạp nghiệp vụ khá cao, không chỉ là website CRUD đơn thuần. Hệ thống đã có đầy đủ các khối chức năng có giá trị thực tế: auth, phân quyền, marketplace sản phẩm, hợp đồng, escrow, ví ảo, gateway nạp tiền, messaging, weather alert và partner rating. Về mặt kỹ thuật, dự án đã có nền tảng tốt để phát triển tiếp, và build/backend runtime hiện đang hoạt động được.
+
+Tuy nhiên, để sẵn sàng cho giai đoạn bảo vệ, demo hoặc triển khai nghiêm túc hơn, cần đặc biệt ưu tiên 3 nhóm vấn đề:
+- Ổn định session và đồng bộ frontend auth/profile.
+- Khóa chính sách phân quyền tranh chấp và hoàn thiện log giao dịch ví.
+- Đồng bộ tài liệu/cấu hình/test để giảm rủi ro vận hành.
+
+Nếu cần biến bản này thành:
+- báo cáo nộp môn,
+- phụ lục API,
+- tài liệu Word/PDF có bảng biểu đẹp,
+- hoặc version ngắn gọn để thuyết trình,
+thì có thể tách chính file TXT này thành nhiều phiên bản sau.
+

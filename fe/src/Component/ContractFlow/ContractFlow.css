@@ -1,0 +1,606 @@
+.contract-flow-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fdf9 0%, #eef7f0 100%);
+  padding: 100px 0 60px;
+}
+
+.cf-back {
+  background: none;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: .88rem;
+  cursor: pointer;
+  margin-bottom: 20px;
+  color: #555;
+  transition: all .2s;
+}
+
+.cf-back:hover {
+  background: #fff;
+  border-color: #198754;
+  color: #198754;
+}
+
+.cf-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.cf-header h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.cf-header p {
+  color: #666;
+  font-size: .95rem;
+}
+
+/* ── Steps ── */
+.cf-steps {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+
+.cf-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.cf-step-dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: #999;
+  border: 2px solid #dee2e6;
+  transition: all .3s;
+}
+
+.cf-step.active .cf-step-dot {
+  background: #198754;
+  color: #fff;
+  border-color: #198754;
+  box-shadow: 0 2px 12px rgba(25,135,84,.3);
+}
+
+.cf-step.done .cf-step-dot {
+  background: #198754;
+  color: #fff;
+  border-color: #198754;
+}
+
+.cf-step span {
+  font-size: .82rem;
+  color: #999;
+  font-weight: 500;
+}
+
+.cf-step.active span {
+  color: #198754;
+  font-weight: 700;
+}
+
+.cf-step.done span {
+  color: #198754;
+}
+
+.cf-step-line {
+  width: 40px;
+  height: 2px;
+  background: #dee2e6;
+  margin: 0 8px;
+}
+
+.cf-step.active .cf-step-line,
+.cf-step.done .cf-step-line {
+  background: #198754;
+}
+
+/* ── Card ── */
+.cf-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  padding: 36px;
+  margin-bottom: 24px;
+}
+
+.cf-card.center {
+  text-align: center;
+}
+
+.cf-card h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+/* ── Form ── */
+.cf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.cf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cf-field.full {
+  grid-column: 1 / -1;
+}
+
+.cf-field label {
+  font-weight: 600;
+  font-size: .88rem;
+  color: #333;
+}
+
+.cf-field input,
+.cf-field select,
+.cf-field textarea {
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: .92rem;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.cf-field input:focus,
+.cf-field select:focus,
+.cf-field textarea:focus {
+  border-color: #198754;
+}
+
+.cf-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.cf-input-group input {
+  flex: 1;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: .92rem;
+  outline: none;
+}
+
+.cf-input-group select {
+  width: 90px;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: .92rem;
+  outline: none;
+}
+
+/* ── Summary ── */
+.cf-field-note {
+  margin: 2px 0 0;
+  font-size: .8rem;
+  color: #198754;
+  line-height: 1.4;
+}
+
+.cf-field-note.error {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+.cf-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cf-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.cf-summary-row span {
+  color: #666;
+  font-size: .92rem;
+}
+
+.cf-summary-row strong {
+  font-size: .95rem;
+}
+
+.cf-summary-row.total {
+  font-size: 1.05rem;
+  background: #f0fdf4;
+  padding: 12px 16px;
+  border-radius: 10px;
+}
+
+.cf-summary-row.fee {
+  background: #fff8e1;
+  padding: 10px 16px;
+  border-radius: 10px;
+}
+
+.cf-summary-row.fee strong {
+  color: #d4a017;
+}
+
+/* ── Verify ── */
+.cf-verify-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.cf-verify-items {
+  text-align: left;
+  max-width: 400px;
+  margin: 24px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cf-verify-item {
+  padding: 10px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: .9rem;
+  color: #999;
+}
+
+.cf-verify-item.done {
+  background: #f0fdf4;
+  color: #198754;
+  font-weight: 500;
+}
+
+.cf-verify-badge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 12px;
+  padding: 16px 22px;
+  max-width: 500px;
+  margin: 24px auto 0;
+  text-align: left;
+}
+
+.cf-verify-badge span {
+  font-size: 2rem;
+}
+
+.cf-verify-badge strong {
+  font-size: .95rem;
+  display: block;
+  margin-bottom: 4px;
+  color: #198754;
+}
+
+.cf-verify-badge p {
+  margin: 0;
+  font-size: .82rem;
+  color: #666;
+}
+
+/* ── Contract Doc ── */
+.cf-contract-doc {
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.cf-doc-header {
+  background: #f8f9fa;
+  padding: 20px;
+  text-align: center;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.cf-doc-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #198754;
+}
+
+.cf-doc-header p {
+  margin: 4px 0 0;
+  font-size: .82rem;
+  color: #888;
+}
+
+.cf-doc-body {
+  padding: 20px;
+}
+
+.cf-doc-body p {
+  margin-bottom: 8px;
+  font-size: .9rem;
+  line-height: 1.6;
+}
+
+/* ── Checkboxes ── */
+.cf-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cf-checkboxes label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: .9rem;
+  line-height: 1.4;
+}
+
+.cf-checkboxes input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: #198754;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.cf-link-btn {
+  background: none;
+  border: none;
+  color: #198754;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* ── Sign ── */
+.cf-sign-area {
+  display: flex;
+  justify-content: center;
+}
+
+.cf-signature-box {
+  text-align: center;
+}
+
+.cf-signature-box p {
+  font-size: .85rem;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.cf-signature-pad {
+  width: 280px;
+  height: 90px;
+  border: 2px dashed #198754;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-script);
+  font-size: 1.4rem;
+  color: #198754;
+  background: #f0fdf4;
+}
+
+/* ── Done ── */
+.cf-done-icon {
+  font-size: 3.5rem;
+  margin-bottom: 12px;
+}
+
+.cf-done-summary {
+  max-width: 360px;
+  margin: 24px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.cf-done-summary > div {
+  display: flex;
+  justify-content: space-between;
+  font-size: .92rem;
+}
+
+.cf-done-summary span {
+  color: #666;
+}
+
+.cf-done-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+/* ── Nav ── */
+.cf-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Buttons ── */
+.cf-btn {
+  padding: 10px 28px;
+  border-radius: 10px;
+  font-size: .92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  border: none;
+}
+
+.cf-btn.primary {
+  background: #198754;
+  color: #fff;
+}
+
+.cf-btn.primary:hover:not(:disabled) {
+  background: #157347;
+}
+
+.cf-btn.primary:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.cf-btn.outline {
+  border: 1px solid #dee2e6;
+  background: #fff;
+  color: #555;
+}
+
+.cf-btn.outline:hover:not(:disabled) {
+  border-color: #198754;
+  color: #198754;
+}
+
+.cf-btn.outline:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .cf-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-steps {
+    gap: 4px;
+  }
+
+  .cf-step-line {
+    width: 20px;
+  }
+
+  .cf-step span {
+    display: none;
+  }
+
+  .cf-card {
+    padding: 20px;
+  }
+
+  .cf-done-actions {
+    flex-direction: column;
+  }
+}
+
+/* ==================== */
+/* CSS-BASED ICONS      */
+/* ==================== */
+
+.check-inline {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2316a34a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.shield-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2316a34a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  flex-shrink: 0;
+}
+
+.shield-icon.large {
+  width: 48px;
+  height: 48px;
+}
+
+.done-check-icon {
+  display: inline-block;
+  width: 52px;
+  height: 52px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23198754'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  margin: 0 auto 12px;
+}
+
+.step-num {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.cf-link-btn {
+  background: none;
+  border: none;
+  color: #198754;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.cf-link-btn:hover {
+  color: #146c43;
+}
+
+/* ── Insurance Toggle & Section ── */
+.cf-custom-deposit { margin-top: 10px; }
+.cf-custom-deposit-row { display: flex; gap: 12px; }
+.cf-custom-deposit-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.cf-custom-deposit-field label { font-size: 12px; color: #555; font-weight: 500; }
+.cf-custom-deposit-field input { padding: 7px 10px; border: 1.5px solid #d1d5db; border-radius: 7px; font-size: 14px; outline: none; transition: border 0.2s; }
+.cf-custom-deposit-field input:focus { border-color: #2e7d32; }
+.cf-custom-deposit-error { margin-top: 6px; font-size: 12px; color: #d32f2f; font-weight: 500; }
+.cf-custom-deposit-ok { margin-top: 6px; font-size: 12px; color: #2e7d32; font-weight: 600; }
+
+.cf-insurance-toggle { margin-top: 18px; padding: 14px; background: #f0fdf4; border: 1px solid #c8e6c9; border-radius: 10px; }
+.cf-toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: .9rem; font-weight: 500; color: #374151; }
+.cf-toggle-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: #618968; cursor: pointer; }
+.cf-insurance-section { margin-top: 14px; padding: 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
+.cf-insurance-section h4 { margin: 0 0 6px; font-size: .95rem; color: #2e7d32; }
+.cf-ins-note { margin: 0 0 14px; font-size: .82rem; color: #6b7280; line-height: 1.4; }
+.cf-insurance-section .cf-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.cf-insurance-section .cf-row > div { flex: 1; min-width: 180px; }
+.cf-insurance-section label { display: block; font-size: .82rem; color: #4b5563; margin-bottom: 3px; font-weight: 500; }
+.cf-insurance-section input,
+.cf-insurance-section select,
+.cf-insurance-section textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; transition: border-color .2s; }
+.cf-insurance-section input:focus,
+.cf-insurance-section select:focus,
+.cf-insurance-section textarea:focus { outline: none; border-color: #618968; box-shadow: 0 0 0 2px rgba(97,137,104,.12); }
+.cf-insurance-section textarea { resize: vertical; min-height: 60px; }

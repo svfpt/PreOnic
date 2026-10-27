@@ -1,0 +1,61 @@
+:root {
+  /* Hệ thống font theo vị trí — không khoá cứng một font duy nhất:
+     - base: chữ thân/UI (dễ đọc, tối ưu tiếng Việt)
+     - heading: tiêu đề mục, card
+     - display: tiêu đề lớn marketing (hero, banner)
+     - mono: mã/OTP/code
+     - script: chữ ký/ghi chú nhấn mạnh */
+  --font-base: 'Be Vietnam Pro', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Be Vietnam Pro', 'Segoe UI', sans-serif;
+  --font-display: 'Sora', 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-script: 'Dancing Script', 'Brush Script MT', cursive;
+
+  /* Màu thương hiệu & trạng thái (token dùng chung) */
+  --brand: #16a34a;
+  --brand-strong: #15803d;
+  --brand-soft: #f0fdf4;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --ink: #111827;
+  --ink-soft: #4b5563;
+  --muted: #9ca3af;
+  --line: #e5e7eb;
+
+  /* Bo góc & đổ bóng */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.05);
+  --shadow: 0 8px 24px rgba(0,0,0,0.08);
+
+  /* Lớp z-index cho drawer/overlay dashboard */
+  --z-overlay: 1200;
+  --z-drawer: 1300;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-base);
+  background-color: #f8f9fa;
+  color: #212529;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tiêu đề dùng font heading cho cảm giác hiện đại, tương phản với thân chữ */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Tiêu đề lớn marketing (hero/banner) — dùng class .display-font để chọn font display */
+.display-font {
+  font-family: var(--font-display);
+}

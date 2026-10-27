@@ -1,0 +1,48 @@
+/* ============================================
+   HOME MID — sạch, light, đồng bộ design system
+   ============================================ */
+
+.home-mid {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f7faf8 0%, #ebf6dd 100%);
+  padding: 20px 0;
+}
+
+.home-mid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 15% 25%, rgba(22, 163, 74, 0.07) 0%, transparent 38%),
+    radial-gradient(circle at 85% 75%, rgba(34, 197, 94, 0.06) 0%, transparent 42%);
+}
+
+.home-mid::after {
+  content: "";
+  position: absolute;
+  bottom: 30px;
+  right: -40px;
+  width: 220px;
+  height: 220px;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M85,15 C60,15 25,40 15,85 C55,85 90,55 85,15 Z' fill='%2316a34a' opacity='0.06'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  transform: rotate(140deg);
+}
+
+.home-mid > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 991px) {
+  .home-mid {
+    padding: 12px 0;
+  }
+}

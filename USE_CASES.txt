@@ -1,0 +1,358 @@
+Authentication & User Management
+- Register account: Create new user (farmer or enterprise).
+  Endpoint: POST /api/v1/auth/register
+  Access: Public
+  Request: { fullName, email, phone, password, confirmPassword, role, agreeTerms }
+
+- Login: Authenticate user and receive access + refresh tokens.
+  Endpoint: POST /api/v1/auth/login
+  Access: Public
+  Request: { emailOrPhone, password, rememberMe }
+
+- Refresh access token: Exchange refresh token for new access token.
+  Endpoint: POST /api/v1/auth/refresh-token
+  Access: Public (requires refresh token cookie or body)
+
+- Logout: Invalidate refresh token (clears cookie).
+  Endpoint: POST /api/v1/auth/logout
+  Access: Private
+
+- Forgot password: Request password reset token (email flow).
+  Endpoint: POST /api/v1/auth/forgot-password
+  Access: Public
+  Request: { email }
+
+- Reset password: Reset using token sent via email.
+  Endpoint: POST /api/v1/auth/reset-password
+  Access: Public
+  Request: { token, password, confirmPassword }
+
+- Update password: Change password while authenticated.
+  Endpoint: PUT /api/v1/auth/update-password
+  Access: Private
+  Request: { currentPassword, newPassword, confirmNewPassword }
+
+- Get current user (profile): Retrieve logged-in user's details.
+  Endpoint: GET /api/v1/auth/me
+  Access: Private
+
+- Update profile: Update name/phone/avatar (not password).
+  Endpoint: PUT /api/v1/auth/update-profile
+  Access: Private
+  Request: { fullName, phone, avatar }
+
+- Verify email: Verify account by token link.
+  Endpoint: GET /api/v1/auth/verify-email/:token
+  Access: Public
+
+- Resend verification email: Trigger sending verification link.
+  Endpoint: POST /api/v1/auth/resend-verification
+  Access: Private
+
+- Deactivate account: Soft-delete user account.
+  Endpoint: DELETE /api/v1/auth/deactivate
+  Access: Private
+
+Products & Reviews
+- List products: Query/filter/sort/paginate products.
+  Endpoint: GET /api/v1/products
+  Access: Public
+  Query: category, region, type, search, page, limit, sort
+
+- Get product by ID: Retrieve single product details.
+  Endpoint: GET /api/v1/products/:id
+  Access: Public
+
+- Get similar products: Recommendations by product.
+  Endpoint: GET /api/v1/products/:id/similar
+  Access: Public
+
+- Get products by region: region-based listing (north/central/south).
+  Endpoint: GET /api/v1/products/region/:region
+  Access: Public
+
+- Create product listing: Farmer creates a product/crop.
+  Endpoint: POST /api/v1/products
+  Access: Private (Farmer only)
+  Request: product data
+
+- Update product: Owner updates product details.
+  Endpoint: PUT /api/v1/products/:id
+  Access: Private (Owner)
+
+- Delete product: Soft-delete product.
+  Endpoint: DELETE /api/v1/products/:id
+  Access: Private (Owner)
+
+- Get my products: List products created by current user.
+  Endpoint: GET /api/v1/products/my
+  Access: Private
+
+- Get product reviews: List reviews for a product.
+  Endpoint: GET /api/v1/products/:id/reviews
+  Access: Public
+
+- Add product review: Enterprise can add review to a product.
+  Endpoint: POST /api/v1/products/:id/reviews
+  Access: Private (Enterprise only)
+  Request: { rating, text }
+
+Farmer Features
+- Farmer dashboard: Aggregated stats, recent contracts.
+  Endpoint: GET /api/v1/farmer/dashboard
+  Access: Private (Farmer only)
+
+- Farmer contracts: List farmer's contracts (optional ?status=).
+  Endpoint: GET /api/v1/farmer/contracts
+  Access: Private (Farmer only)
+
+- Farmer orders: Derived orders from contracts + escrow milestones.
+  Endpoint: GET /api/v1/farmer/orders
+  Access: Private (Farmer only)
+  Query: ?status=
+
+- Farmer finances: Wallet/balance and recent escrow transactions.
+  Endpoint: GET /api/v1/farmer/finances
+  Access: Private (Farmer only)
+
+- Farmer crops: List farmer's product/crop entries.
+  Endpoint: GET /api/v1/farmer/crops
+  Access: Private (Farmer only)
+
+Enterprise Features
+- Enterprise dashboard: Aggregated stats and recent contracts.
+  Endpoint: GET /api/v1/enterprise/dashboard
+  Access: Private (Enterprise only)
+
+- Enterprise suppliers: List farmers the enterprise worked with.
+  Endpoint: GET /api/v1/enterprise/suppliers
+  Access: Private (Enterprise only)
+
+- Enterprise contracts: List enterprise's contracts (optional ?status=).
+  Endpoint: GET /api/v1/enterprise/contracts
+  Access: Private (Enterprise only)
+
+- Enterprise warehouse: Aggregated inventory from completed contracts.
+  Endpoint: GET /api/v1/enterprise/warehouse
+  Access: Private (Enterprise only)
+
+- Enterprise analytics: Monthly spending and product distribution.
+  Endpoint: GET /api/v1/enterprise/analytics
+  Access: Private (Enterprise only)
+
+- Enterprise orders: Orders derived from contracts + escrow milestones.
+  Endpoint: GET /api/v1/enterprise/orders
+  Access: Private (Enterprise only)
+
+Contract Management
+- Create contract: Create a new contract (farmer/enterprise flow supported by service logic).
+  Endpoint: POST /api/v1/contracts
+  Access: Private
+  Request: contract payload
+
+- List contracts: List user's contracts (supports ?status=).
+  Endpoint: GET /api/v1/contracts
+  Access: Private
+
+- Get contract: Get contract details by ID.
+  Endpoint: GET /api/v1/contracts/:id
+  Access: Private
+
+- Sign contract: Sign/approve contract (role-aware).
+  Endpoint: POST /api/v1/contracts/:id/sign
+  Access: Private
+
+- Cancel contract: Cancel a contract with optional reason.
+  Endpoint: POST /api/v1/contracts/:id/cancel
+  Access: Private
+  Request: { reason }
+
+- Reject contract: Farmer rejects before signing.
+  Endpoint: POST /api/v1/contracts/:id/reject
+  Access: Private
+  Request: { reason }
+
+Escrow & Dispute Flow
+- Create escrow: Initialize escrow for a contract.
+  Endpoint: POST /api/v1/escrow
+  Access: Private
+  Request: { contractId }
+
+- List escrows: List escrows for user.
+  Endpoint: GET /api/v1/escrow
+  Access: Private
+
+- Get escrow by ID: Details and milestones.
+  Endpoint: GET /api/v1/escrow/:id
+  Access: Private
+
+- Get escrow by contract: Fetch escrow by contract ID.
+  Endpoint: GET /api/v1/escrow/contract/:contractId
+  Access: Private
+
+- Deposit: Enterprise deposits funds into escrow.
+  Endpoint: POST /api/v1/escrow/:id/deposit
+  Access: Private (Enterprise)
+  Request: { amount }
+
+- Farmer confirm milestone: Farmer confirms a milestone (evidence allowed).
+  Endpoint: POST /api/v1/escrow/:id/farmer-confirm
+  Access: Private (Farmer)
+  Request: { milestoneStep, evidence }
+
+- Enterprise confirm milestone: Enterprise confirms milestone.
+  Endpoint: POST /api/v1/escrow/:id/enterprise-confirm
+  Access: Private (Enterprise)
+  Request: { milestoneStep, evidence }
+
+- Raise dispute: Create dispute for a milestone.
+  Endpoint: POST /api/v1/escrow/:id/dispute
+  Access: Private
+  Request: { milestoneStep, reason, evidence[] }
+
+- List user disputes: Get disputes belonging to user.
+  Endpoint: GET /api/v1/escrow/disputes
+  Access: Private
+
+- Resolve dispute: Admin (currently any auth) resolves dispute.
+  Endpoint: POST /api/v1/escrow/disputes/:id/resolve
+  Access: Private (should be Admin in production)
+  Request: { resolution, adminNotes }
+
+- Get virtual balance: Retrieve user's virtual wallet balance.
+  Endpoint: GET /api/v1/escrow/balance
+  Access: Private
+
+Notifications
+- List notifications: Paginated list for user.
+  Endpoint: GET /api/v1/notifications
+  Access: Private
+  Query: ?page=&limit=
+
+- Unread count: Quick unread notifications count.
+  Endpoint: GET /api/v1/notifications/unread-count
+  Access: Private
+
+- Mark as read: Mark single notification read.
+  Endpoint: PATCH /api/v1/notifications/:id/read
+  Access: Private
+
+- Mark all as read: Mark all notifications read.
+  Endpoint: PATCH /api/v1/notifications/read-all
+  Access: Private
+
+Partner Ratings
+- Get eligible partners: Retrieve partners eligible for rating.
+  Endpoint: GET /api/v1/partner-ratings/eligible-partners
+  Access: Private
+
+- Create partner rating: Submit rating for a partner.
+  Endpoint: POST /api/v1/partner-ratings
+  Access: Private
+  Request: rating payload
+
+- Get my ratings: List current user's submitted ratings.
+  Endpoint: GET /api/v1/partner-ratings/mine
+  Access: Private
+
+Payments & Wallet
+- Payment webhook: Receive gateway webhook (unauthenticated endpoint).
+  Endpoint: POST /api/v1/payment/webhook
+  Access: Public
+
+- Create top-up: Create top-up/payment link.
+  Endpoint: POST /api/v1/payment/topup
+  Access: Private
+  Request: { amount, description }
+
+- Verify top-up: Verify and process returned payment.
+  Endpoint: POST /api/v1/payment/topup/verify
+  Access: Private
+  Request: { orderCode }
+
+- Demo top-up: Instant demo top-up (no gateway).
+  Endpoint: POST /api/v1/payment/demo-topup
+  Access: Private
+  Request: { amount }
+
+- Cancel top-up: Cancel pending top-up request.
+  Endpoint: POST /api/v1/payment/cancel
+  Access: Private
+  Request: { orderCode }
+
+- Wallet info: Get wallet summary and stats.
+  Endpoint: GET /api/v1/payment/wallet
+  Access: Private
+
+- Transactions: Paginated transaction history.
+  Endpoint: GET /api/v1/payment/transactions
+  Access: Private
+  Query: ?page=&limit=&type=
+
+File Uploads
+- Upload file (base64): Upload images/docs to server filesystem.
+  Endpoint: POST /api/v1/upload
+  Access: Private
+  Request: { fileName, fileData(base64), fileType }
+  Note: Stores files under /uploads (filesystem — ephemeral on many hosts)
+
+Weather & Alerts
+- Current weather: Get current weather for user's location.
+  Endpoint: GET /api/v1/weather/current
+  Access: Private
+  Query: ?province=
+
+- Forecast: 5-day forecast for user's location.
+  Endpoint: GET /api/v1/weather/forecast
+  Access: Private
+  Query: ?province=
+
+- Weather alerts: List alerts for user (paginated).
+  Endpoint: GET /api/v1/weather/alerts
+  Access: Private
+
+- Unread alert count: Quick count of unread weather alerts.
+  Endpoint: GET /api/v1/weather/alerts/unread-count
+  Access: Private
+
+- Mark alert as read: Mark single weather alert read.
+  Endpoint: PATCH /api/v1/weather/alerts/:id/read
+  Access: Private
+
+- Mark all alerts read: Mark all weather alerts read.
+  Endpoint: PATCH /api/v1/weather/alerts/read-all
+  Access: Private
+
+- Get thresholds: Retrieve system weather thresholds.
+  Endpoint: GET /api/v1/weather/thresholds
+  Access: Private
+
+Messaging
+- List conversations: List user's conversations (partners + last message).
+  Endpoint: GET /api/v1/messaging/conversations
+  Access: Private
+
+- Create/get conversation: Create or fetch conversation with partner.
+  Endpoint: POST /api/v1/messaging/conversations
+  Access: Private
+  Request: { partnerId }
+
+- Get messages: Paginated messages for a conversation (marks read).
+  Endpoint: GET /api/v1/messaging/conversations/:id/messages
+  Access: Private
+  Query: ?page=&limit=
+
+- Send message: Post a message to a conversation.
+  Endpoint: POST /api/v1/messaging/conversations/:id/messages
+  Access: Private
+  Request: { text }
+
+Health & Misc
+- Health check: Basic server health endpoint.
+  Endpoint: GET /health
+  Access: Public
+
+Notes & Observations
+- File-based uploads (`/uploads`) are stored on local filesystem — not suitable for ephemeral hosting.
+- Payment webhook endpoint is public — requires secure verification of gateway signatures.
+- Some admin-only operations (dispute resolution) are currently not restricted — should be enforced in production.

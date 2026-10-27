@@ -1,0 +1,51 @@
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.brand-logo-symbol,
+.brand-logo-wordmark {
+  display: block;
+  object-fit: contain;
+}
+
+.brand-logo-symbol {
+  border-radius: 8px;
+  filter: drop-shadow(0 8px 20px rgba(57, 174, 8, 0.2));
+}
+
+.brand-logo-wordmark {
+  border-radius: 8px;
+}
+
+.brand-logo-sm .brand-logo-symbol {
+  width: 34px;
+  height: 34px;
+}
+
+.brand-logo-sm .brand-logo-wordmark {
+  width: 96px;
+  height: auto;
+}
+
+.brand-logo-md .brand-logo-symbol {
+  width: 40px;
+  height: 40px;
+}
+
+.brand-logo-md .brand-logo-wordmark {
+  width: 112px;
+  height: auto;
+}
+
+.brand-logo-lg .brand-logo-symbol {
+  width: 52px;
+  height: 52px;
+}
+
+.brand-logo-lg .brand-logo-wordmark {
+  width: 148px;
+  height: auto;
+}

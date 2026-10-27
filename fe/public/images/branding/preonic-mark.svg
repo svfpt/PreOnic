@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="PreOnic mark">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#102118" />
+      <stop offset="100%" stop-color="#0b140f" />
+    </linearGradient>
+    <linearGradient id="leaf" x1="18%" x2="82%" y1="12%" y2="88%">
+      <stop offset="0%" stop-color="#78ff8f" />
+      <stop offset="100%" stop-color="#13ec37" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)" />
+  <path
+    d="M88 27c-28 2-49 17-56 40-5 17-1 35 11 49 2 2 6 3 8 0 2-2 2-6 0-8-8-10-11-23-7-35 5-17 20-29 42-35-7 9-16 17-27 25-13 10-24 20-31 32-2 3-1 7 2 8 3 2 7 1 8-2 6-10 16-19 28-28 12-8 23-17 31-29 4-6 7-12 9-18 1-4-2-8-7-7z"
+    fill="url(#leaf)"
+  />
+  <path
+    d="M55 88c8-15 20-27 36-36"
+    fill="none"
+    stroke="#d8ffe0"
+    stroke-linecap="round"
+    stroke-width="5"
+  />
+</svg>

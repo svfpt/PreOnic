@@ -1,0 +1,311 @@
+================================================================================
+  PREONIC - TONG QUAN HE THONG (BAN CAP NHAT)
+  Cập nhật: 10/04/2026 | Phiên bản: v1.0-beta (~90% hoàn thiện)
+================================================================================
+
+
+================================================================================
+  1. GIỚI THIỆU DỰ ÁN
+================================================================================
+
+Tên dự án:  PreOnic (Công ty TNHH PreOnic Việt Nam)
+Slogan:     Nền tảng kết nối nông nghiệp bền vững hàng đầu Việt Nam
+
+Mô tả ngắn gọn:
+  PreOnic là nền tảng số hóa chuỗi cung ứng nông sản, kết nối trực tiếp
+  Nông dân và Doanh nghiệp trong mô hình bao tiêu. Hệ thống hỗ trợ toàn bộ
+  vòng đời hợp đồng: tìm nguồn cung, đàm phán, ký kết, đặt cọc escrow,
+  theo dõi giao hàng, giải ngân theo tiến độ.
+
+Giá trị cốt lõi:
+  - Giảm khâu trung gian, tăng minh bạch giao dịch
+  - Bảo vệ cả 2 bên bằng cơ chế escrow + milestone xác nhận hai chiều
+  - Chuẩn hóa quy trình bao tiêu trên một hệ thống duy nhất
+
+Mô hình kinh doanh:
+  - Nông dân đăng bán nông sản, nhận đề xuất hợp đồng, nhận thanh toán
+  - Doanh nghiệp tìm nguồn cung, ký hợp đồng bao tiêu, quản lý tiến độ
+  - PreOnic thu phí hoa hồng 3% trên giá trị hợp đồng
+  - Escrow: PreOnic giữ tiền đặt cọc và giải ngân theo milestone
+
+
+================================================================================
+  2. TÍNH NĂNG THỰC TIỄN (BẢN DỄ HIỂU CHO NGƯỜI KHÔNG CHUYÊN)
+================================================================================
+
+2.1. Người dùng là Nông dân thì dùng được gì ngay?
+  1) Đăng ký, đăng nhập và quản lý tài khoản an toàn
+     - Có thể dùng email hoặc số điện thoại để đăng nhập
+     - Nếu quên mật khẩu có thể đặt lại ngay trên hệ thống
+
+  2) Đăng bán nông sản theo form từng bước
+     - Điền thông tin nông sản, thời gian thu hoạch, giá mong muốn
+     - Tải ảnh và chứng chỉ để tăng độ tin cậy
+     - Kiểm tra kích thước file trước khi gửi để tránh lỗi
+
+  3) Nhận và quản lý hợp đồng bao tiêu
+     - Xem từng bước hợp đồng rõ ràng
+     - Biết rõ tổng giá trị, phí dịch vụ, và các mốc giao nhận
+
+  4) Theo dõi tiền trong escrow và lịch sử giao dịch
+     - Biết tiền đặt cọc đã vào hệ thống chưa
+     - Xác nhận milestone để nhận giải ngân đúng tiến độ
+
+  5) Giao tiếp nhanh với đối tác
+     - Nhắn tin trực tiếp trong hệ thống
+     - Có thông báo trên header để không bỏ lỡ sự kiện mới
+
+  6) Xem thông tin thời tiết để hỗ trợ mùa vụ
+     - Có thời tiết hiện tại, dự báo 5 ngày và cảnh báo
+
+2.2. Người dùng là Doanh nghiệp thì dùng được gì ngay?
+  1) Tìm nguồn cung nông sản theo nhu cầu
+     - Lọc, tìm kiếm, sắp xếp danh sách sản phẩm
+     - Xem chi tiết sản phẩm trước khi tạo hợp đồng
+
+  2) Tạo và quản lý hợp đồng bao tiêu có quy trình
+     - Luồng 5 bước rõ ràng từ đề xuất đến hoàn tất
+     - Có mã hợp đồng thực tế để đối soát (PRE-YYYY-XXXX)
+
+  3) Quản lý đặt cọc và giải ngân an toàn
+     - Nạp tiền escrow (mức MVP: ghi nhận vào DB, chưa qua cổng thanh toán thực)
+     - Chỉ giải ngân khi milestone được xác nhận bởi cả 2 bên
+
+  4) Quản lý vận hành
+     - Theo dõi hợp đồng, đơn hàng, nhà cung cấp, kho bãi
+     - Xem phân tích xu hướng thị trường (biểu đồ)
+
+  5) Nhận thông báo và cảnh báo
+     - Thông báo giao dịch, hợp đồng, thời tiết ngay trong dashboard
+
+2.3. Giá trị vận hành cho PreOnic (chủ sàn)
+  - Có dữ liệu tập trung để theo dõi giao dịch toàn hệ thống
+  - Có cơ chế tranh chấp theo từng escrow
+  - Có nền tảng để mở rộng thanh toán thật (PayOS), OAuth, email verification
+  - Có sẵn job cron cảnh báo thời tiết và thông báo tự động
+
+2.4. Kết luận theo góc nhìn nghiệp vụ
+  PreOnic hiện đã đủ dùng cho MVP bao tiêu nông sản trên web:
+  - Đã giao dịch được (đăng sản phẩm, tạo hợp đồng, escrow, nhắn tin)
+  - Đã giảm rủi ro giao dịch nhờ cơ chế giữ tiền và xác nhận hai chiều
+  - Đã có dashboard cho cả Nông dân và Doanh nghiệp để vận hành thực tế
+
+
+================================================================================
+  3. TỔNG QUAN CHỨC NĂNG HỆ THỐNG (THEO MODULE)
+================================================================================
+
+A. Xác thực và tài khoản
+  - Đăng ký/đăng nhập/đăng xuất theo vai trò farmer/enterprise
+  - JWT access token + refresh token (httpOnly cookie)
+  - Tự động refresh token khi hết hạn
+  - Bảo vệ brute-force: khóa tạm thời sau 5 lần sai
+  - Quên mật khẩu / đặt lại mật khẩu
+  - Xem, cập nhật hồ sơ; đổi mật khẩu; vô hiệu hóa tài khoản
+
+B. Trang công khai và điều hướng
+  - Trang chủ đầy đủ các section giới thiệu
+  - /products (danh sách), /products/:id (chi tiết)
+  - /solutions, /contact
+
+C. Dashboard Nông dân (/farmer)
+  - Tổng quan mùa vụ, hợp đồng, tài chính
+  - Quản lý hợp đồng, đơn hàng, đối tác
+  - Đăng bán nông sản mới (form 4 bước + upload)
+  - Xác nhận milestone escrow, tạo tranh chấp
+  - Theo dõi thời tiết và cảnh báo
+
+D. Dashboard Doanh nghiệp (/enterprise)
+  - Tổng quan vận hành, hợp đồng, nhà cung cấp, kho bãi
+  - Quản lý nhu cầu thu mua và danh mục sản phẩm
+  - Nạp tiền escrow, xác nhận milestone, tạo tranh chấp
+  - Biểu đồ phân tích thị trường
+
+E. Quy trình tạo hợp đồng (/contract-flow)
+  - Quy trình 5 bước: Đề xuất -> Xem xét -> PreOnic xác nhận -> Ký -> Hoàn tất
+  - Tự tính tổng giá trị + phí hoa hồng 3%
+  - Lưu DB và sinh mã hợp đồng thực
+
+F. Escrow
+  - Tạo escrow khi ký hợp đồng
+  - Nạp tiền cọc (MVP: ghi nhận DB)
+  - Giải ngân milestone theo xác nhận 2 bên
+  - Hỗ trợ tranh chấp
+
+G. Nhắn tin (/messaging)
+  - Danh sách hội thoại + khung chat
+  - Polling 5 giây + optimistic send
+  - Chưa dùng WebSocket real-time
+
+H. Thông báo
+  - Badge thông báo chưa đọc
+  - Dropdown thông báo gần đây, đánh dấu đã đọc
+  - Cron cảnh báo thời tiết mỗi 6 giờ
+
+I. Upload file
+  - Upload ảnh sản phẩm + chứng chỉ
+  - FE validate kích thước file <= 5MB
+  - BE lưu file vào /uploads với tên uuid
+
+J. Thời tiết
+  - OpenWeatherMap: hiện tại + dự báo 5 ngày
+  - Có cảnh báo và cron cập nhật tự động
+
+
+================================================================================
+  4. TRẠNG THÁI HOÀN THIỆN TÍNH NĂNG (ĐẾN 10/04/2026)
+================================================================================
+
+[XÁC THỰC & HỒ SƠ]
+  [x] Đăng ký/đăng nhập/đăng xuất
+  [x] JWT + refresh token cookie
+  [x] Auto-refresh token khi 401
+  [x] Brute-force protection
+  [x] Quên mật khẩu / đặt lại mật khẩu
+  [x] Xem sửa hồ sơ, đổi mật khẩu, deactivate account
+
+[TRANG SẢN PHẨM]
+  [x] Danh sách sản phẩm: filter/search/sort
+  [x] Chi tiết sản phẩm
+  [x] Product CRUD API
+
+[DASHBOARD]
+  [x] Kết nối API thật cho Farmer và Enterprise
+  [x] Xóa fallback data giả trên dashboard
+  [x] Header search hoạt động cả 2 dashboard
+  [x] Fix deliveryStatus trong Enterprise Orders
+
+[HỢP ĐỒNG & ESCROW]
+  [x] Lưu hợp đồng thật vào MongoDB
+  [x] Sinh mã PRE-YYYY-XXXX tự động
+  [x] Tạo escrow, deposit, confirm milestone, dispute
+
+[NHẮN TIN & THÔNG BÁO]
+  [x] Messaging REST API + FE polling
+  [x] Notification bell + mark read + mark all
+
+[THỜI TIẾT]
+  [x] API thời tiết + cron cảnh báo mỗi 6 giờ
+
+[UPLOAD]
+  [x] Upload file base64 -> lưu disk
+  [x] FE validate file size 5MB
+
+[KHÁC]
+  [x] Toast notification system
+  [x] Build production clean
+
+
+================================================================================
+  5. HẠNG MỤC ĐANG HOÀN THIỆN / CHƯA ƯU TIÊN
+================================================================================
+
+5.1. Đang tồn tại ở mức MVP (chấp nhận được)
+  - Messaging chưa real-time WebSocket (đang polling 5s)
+  - Escrow deposit chưa chạy qua cổng thanh toán thật
+
+5.2. Còn hardcode một phần dữ liệu hiển thị
+  - ThiTruongContent (Farmer): marketPrices, news đang là dữ liệu tĩnh
+  - TaiChinhContent (Farmer): trend % đang hardcode, expense chưa có API
+  - EnterpriseDashboard: subtitle tổng giá trị hợp đồng đang hardcode
+
+5.3. Tính năng có nền tảng nhưng chưa implement
+  - Google OAuth login
+  - PayOS payment link/checkout thật
+  - Email verification sau đăng ký
+
+
+================================================================================
+  6. TÍNH NĂNG CHƯA LÀM / NGOÀI PHẠM VI MVP
+================================================================================
+
+[Có thể đưa vào roadmap giai đoạn tiếp theo]
+  - WebSocket/Socket.io cho messaging real-time
+  - Push notification (FCM/browser)
+  - Admin panel nội bộ cho PreOnic
+  - Báo cáo & export PDF/Excel
+  - Hệ thống rating sau hợp đồng
+  - SEO & sitemap cho trang công khai
+
+[Nghiên cứu dài hạn]
+  - AI phân tích sâu bệnh
+  - IoT tưới tiêu thông minh
+  - Blockchain smart contract
+  - Logistics tracking tích hợp
+  - Mobile app (React Native/Flutter)
+
+
+================================================================================
+  7. BUG LỚN / RỦI RO CÒN TỒN TẠI
+================================================================================
+
+Bug đã sửa:
+  [x] Forgot password gửi email thật
+  [x] Sai mapping trạng thái giao hàng enterprise
+  [x] Dashboard fallback data giả
+  [x] Kiểm tra file size upload
+  [x] Header search chưa hoạt động
+
+Rủi ro còn lại:
+  - Messaging polling gây trễ tối đa ~5 giây và tăng tải server khi scale lớn
+  - Chưa có cổng thanh toán thật cho escrow nên chưa đóng tiền thực
+  - Một số block phân tích thị trường/tài chính còn mang tính minh họa
+
+
+================================================================================
+  8. PHỤ LỤC KỸ THUẬT
+================================================================================
+
+Tech stack:
+  Frontend: React 19, React Router v7, React Bootstrap 5.3,
+            Framer Motion, Recharts, Axios, Context API
+  Backend:  Node.js, Express.js, TypeScript, MongoDB, Mongoose,
+            JWT, nodemailer, multer/base64, node-cron
+
+URLs:
+  FE:  http://localhost:3000
+  BE:  http://localhost:5000/api/v1
+
+BE routes active:
+  /api/v1/auth
+  /api/v1/farmer
+  /api/v1/enterprise
+  /api/v1/products
+  /api/v1/contracts
+  /api/v1/escrow
+  /api/v1/weather
+  /api/v1/notifications
+  /api/v1/messaging
+  /api/v1/upload
+  /health
+
+MongoDB models:
+  User, Contract, Escrow, Dispute, Message, Notification,
+  Product, WeatherAlert (Conversation đang inline/model riêng tùy bố trí)
+
+Biến môi trường đã có trong be/.env:
+  EMAIL_*        (SMTP gửi mail)
+  GOOGLE_*       (OAuth - chưa implement flow)
+  PAYOS_*        (Payment - chưa implement flow)
+  OPENWEATHER_API_KEY
+
+Thư mục hệ thống:
+  e:\K7\exe3\PreOnic\
+  |- be/  (Node.js + TypeScript, port 5000)
+  |- fe/  (React, port 3000)
+
+================================================================================
+  KẾT LUẬN NGẮN GỌN
+================================================================================
+
+PreOnic hiện tại đã có thể vận hành được mô hình bao tiêu nông sản ở mức MVP,
+trong đó các luồng trọng tâm (tài khoản, sản phẩm, hợp đồng, escrow, dashboard,
+nhắn tin, thông báo, thời tiết) đã chạy xuyên suốt từ FE đến BE và DB.
+Phần cần ưu tiên tiếp theo để nâng cấp từ MVP lên giai đoạn vận hành thật là:
+  1) Tích hợp cổng thanh toán thật cho escrow (PayOS)
+  2) Nâng cấp messaging từ polling lên real-time
+  3) Bổ sung dữ liệu thị trường/tài chính từ API thật để giảm hardcode
+
+================================================================================
+  KẾT THÚC FILE  [10/04/2026]
+================================================================================

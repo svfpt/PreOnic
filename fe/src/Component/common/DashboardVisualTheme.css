@@ -1,0 +1,688 @@
+/* ================================================================ */
+/* VISUAL THEME — PreOnic Dashboard Redesign                        */
+/* Áp dụng cho: FarmerDashboard, EnterpriseDashboard               */
+/* ================================================================ */
+
+/* ===== 1. BACKGROUNDS + LAYOUT FIX ===== */
+
+/* Fix layout height so sidebar footer is always sticky */
+.fd-wrapper {
+  background: #edf7ee !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+.ed-layout {
+  background: #edf7ee !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+/* Sidebar: hide overflow so only nav scrolls */
+.fd-sidebar { overflow: hidden !important; }
+.ed-sidebar { overflow: hidden !important; }
+
+/* Nav: grow to fill space + scroll if many items */
+.fd-nav {
+  flex: 1 1 0 !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+}
+.ed-nav {
+  flex: 1 1 0 !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+}
+
+/* Sidebar footer: never shrink, always at bottom */
+.fd-sidebar-footer { flex-shrink: 0 !important; }
+.ed-sidebar-footer { flex-shrink: 0 !important; }
+
+/* Main content: takes remaining width + scrolls independently */
+.fd-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow-y: auto !important;
+}
+.ed-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow-y: auto !important;
+}
+
+/* ===== 2. SIDEBAR — FARMER ===== */
+
+.fd-sidebar {
+  background: linear-gradient(160deg, #15803d 0%, #14532d 100%) !important;
+  border-right: none !important;
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Logo text trên nền tối */
+.fd-sidebar .logo-text h1 { color: #fff !important; letter-spacing: -0.02em; }
+.fd-sidebar .logo-text p  { color: rgba(255, 255, 255, 0.5) !important; }
+
+/* Nav icons → trắng trên nền tối */
+.fd-sidebar .nav-icon,
+.fd-sidebar .msg-sidebar-icon,
+.fd-sidebar .logout-sidebar-icon {
+  filter: brightness(0) invert(1) !important;
+  opacity: 0.6;
+}
+.fd-sidebar .fd-nav button:hover .nav-icon,
+.fd-sidebar .fd-nav button.active .nav-icon {
+  opacity: 1;
+}
+
+/* Nav button text */
+.fd-nav button {
+  color: rgba(255, 255, 255, 0.68) !important;
+}
+.fd-nav button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  transform: translateX(2px);
+}
+.fd-nav button.active {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: none !important;
+}
+.fd-nav button.active::before {
+  background: #4ade80 !important;
+}
+
+/* Create button (Đăng bán) trên nền tối */
+.fd-create {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+}
+.fd-create:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+}
+/* Tắt pulse animation trên nền tối (không rõ) */
+.fd-create::after { display: none !important; }
+
+/* Sidebar footer */
+.fd-sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+.fd-sidebar-footer .messaging-btn,
+.fd-sidebar-footer .logout-btn {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+.fd-sidebar-footer .messaging-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+.fd-sidebar-footer .logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+}
+
+/* ===== 3. SIDEBAR — ENTERPRISE ===== */
+
+.ed-sidebar {
+  background: linear-gradient(160deg, #15803d 0%, #14532d 100%) !important;
+  border-right: none !important;
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+.ed-sidebar .logo-text h1 { color: #fff !important; letter-spacing: -0.02em; }
+.ed-sidebar .logo-text p  { color: rgba(255, 255, 255, 0.5) !important; }
+
+.ed-sidebar .nav-icon,
+.ed-sidebar .msg-sidebar-icon,
+.ed-sidebar .logout-sidebar-icon {
+  filter: brightness(0) invert(1) !important;
+  opacity: 0.6;
+}
+.ed-sidebar .ed-nav button:hover .nav-icon,
+.ed-sidebar .ed-nav button.active .nav-icon {
+  opacity: 1;
+}
+
+.ed-nav button {
+  color: rgba(255, 255, 255, 0.68) !important;
+}
+.ed-nav button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  transform: translateX(2px);
+}
+.ed-nav button.active {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: none !important;
+}
+.ed-nav button.active::before {
+  background: #4ade80 !important;
+}
+
+/* Enterprise create button */
+.ed-create-btn {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: none !important;
+}
+.ed-create-btn:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  transform: scale(1.01);
+}
+
+.ed-sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+.ed-sidebar-footer .messaging-btn,
+.ed-sidebar-footer .logout-btn {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+.ed-sidebar-footer .messaging-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+.ed-sidebar-footer .logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+}
+
+/* ===== 4. HEADER BAR ===== */
+
+.fd-header {
+  background: #fff !important;
+  border-bottom: 1px solid #e2ece4 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+}
+.ed-header {
+  background: #fff !important;
+  border-bottom: 1px solid #e2ece4 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Thay neon-green focus ring bằng brand green */
+.fd-header-search input:focus,
+.header-search input:focus,
+.fd-search input:focus {
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25) !important;
+}
+
+/* Notification button hover — xanh thay neon */
+.notification-btn:hover {
+  border-color: #16a34a !important;
+  background: rgba(22, 163, 74, 0.06) !important;
+}
+
+/* ===== 5. AVATARS ===== */
+
+.fd-user-avatar,
+.user-avatar {
+  background: linear-gradient(135deg, #16a34a, #22c55e) !important;
+  color: #fff !important;
+  border-color: rgba(22, 163, 74, 0.3) !important;
+}
+
+/* ===== 6. STAT CARDS — FARMER ===== */
+
+.fd-stat-card {
+  border: 1px solid #e2ece4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+.fd-stat-card:hover {
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.14) !important;
+  transform: translateY(-2px);
+  border-color: #c6dfc9 !important;
+}
+
+/* ===== 7. STAT CARDS — ENTERPRISE (accent per position) ===== */
+
+.ed-stats .stat-card {
+  border-left-width: 4px !important;
+  border-left-style: solid !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding-left: 20px;
+}
+.ed-stats .stat-card:nth-child(1) { border-left-color: #3b82f6 !important; }
+.ed-stats .stat-card:nth-child(2) { border-left-color: #16a34a !important; }
+.ed-stats .stat-card:nth-child(3) { border-left-color: #f59e0b !important; }
+.ed-stats .stat-card:nth-child(4) { border-left-color: #8b5cf6 !important; }
+.ed-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ===== 8. GRADIENT PAGE TITLES ===== */
+
+.muavu-welcome h1 {
+  background: linear-gradient(135deg, #111812 25%, #15803d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #111812; /* fallback */
+}
+
+.page-title {
+  background: linear-gradient(135deg, #111812 25%, #15803d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #111812;
+}
+
+/* ===== 9. PAGE HEADER PRIMARY BUTTON ===== */
+
+.cf-btn.primary,
+.page-header .cf-btn.primary {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3) !important;
+}
+.cf-btn.primary:hover {
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.42) !important;
+  transform: translateY(-1px);
+}
+
+/* ===== 10. CONTRACT TABS ===== */
+
+/* Farmer contract tabs */
+.fd-pg-tabs {
+  border-bottom: 2px solid #e2ece4;
+  padding-bottom: 0;
+}
+.fd-pg-tab.active {
+  color: #15803d !important;
+  border-bottom-color: #15803d !important;
+}
+
+/* Enterprise contract tabs */
+.contract-tabs {
+  border-bottom: 2px solid #e2ece4;
+}
+.contract-tab.active {
+  border-bottom: 2px solid #15803d !important;
+  color: #15803d !important;
+}
+.tab-badge {
+  background: #15803d !important;
+  color: #fff !important;
+}
+.fd-pg-tab-badge {
+  background: #15803d !important;
+  color: #fff !important;
+}
+
+/* ===== 11. STATUS BADGES — khỏe hơn ===== */
+
+.status-badge.active   { background: #dcfce7 !important; color: #15803d !important; }
+.status-badge.pending  { background: #fef9c3 !important; color: #a16207 !important; }
+.status-badge.approved { background: #e0f2fe !important; color: #0369a1 !important; }
+.status-badge.completed{ background: #e0f2fe !important; color: #1d4ed8 !important; }
+.status-badge.cancelled{ background: #f1f5f9 !important; color: #64748b !important; }
+
+/* ===== 12. SECTION HEADERS trong content ===== */
+
+.fd-section-title,
+.section-title {
+  color: #15803d !important;
+  border-left: 3px solid #16a34a;
+  padding-left: 10px;
+}
+
+/* ===== 13. BREADCRUMB ===== */
+.breadcrumb { color: #6b9e77 !important; }
+
+/* ===== 14. CARD GENERAL IMPROVEMENTS ===== */
+
+/* Activity log */
+.activity-log {
+  border: 1px solid #e2ece4;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.activity-header {
+  background: linear-gradient(90deg, #f0f7f1, #fff);
+  border-bottom: 1px solid #e2ece4;
+}
+
+/* ===== 15. ENTERPRISE CONTRACT CARDS — left border accent per status ===== */
+
+.contract-card-item.cci-active    { border-left: 4px solid #16a34a !important; }
+.contract-card-item.cci-pending   { border-left: 4px solid #f59e0b !important; }
+.contract-card-item.cci-completed { border-left: 4px solid #3b82f6 !important; }
+.contract-card-item.cci-cancelled { border-left: 4px solid #d1d5db !important; }
+
+.contract-card-item:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-1px);
+}
+
+/* Enterprise approve button — neon → brand green */
+.approve-btn {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+}
+.approve-btn:hover {
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35) !important;
+  opacity: 1 !important;
+}
+
+/* Enterprise contract tabs — already styled, reinforce color */
+.contract-tab.active {
+  color: #15803d !important;
+  border-bottom-color: #15803d !important;
+}
+.contract-tab.active .tab-badge {
+  background: #15803d !important;
+}
+
+/* ===== 16. FARMER — Tab pill active (neon → brand green) ===== */
+
+.fd-pg-tab.active {
+  background: linear-gradient(135deg, #15803d, #166534) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.3) !important;
+}
+.fd-pg-tab.active .fd-pg-tab-badge {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+}
+
+/* ===== 17. FARMER — Order tracker (neon → brand green) ===== */
+
+.fd-ot-step.done:not(:last-child)::after {
+  background: #16a34a !important;
+}
+.fd-ot-step.done .fd-ot-dot {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+.fd-ot-step.current .fd-ot-dot {
+  border-color: #16a34a !important;
+  color: #15803d !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2) !important;
+}
+.fd-ot-step.done .fd-ot-label    { color: #16a34a !important; }
+
+/* ===== 18. FARMER — Buttons (neon → brand green) ===== */
+
+.fd-btn-green {
+  background: linear-gradient(135deg, #16a34a, #22c55e) !important;
+  color: #fff !important;
+}
+.fd-btn-green:hover {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.3) !important;
+}
+
+/* ===== 19. FARMER — Order card head ===== */
+
+.fd-order-card-head {
+  background: linear-gradient(90deg, #f0f7f2, #f8fdf8) !important;
+  border-bottom: 1px solid #e2ece4 !important;
+}
+
+/* ===== 20. GENERAL — Neon green in focus rings ===== */
+
+input:focus, textarea:focus, select:focus {
+  border-color: #16a34a !important;
+}
+
+/* ===== 21. FARMER — MuaVu progress bar (neon → proper green) ===== */
+
+.mv-prog-fill {
+  background: linear-gradient(90deg, #16a34a, #22c55e) !important;
+}
+
+/* ===== 22. SECTION CARD HEADS ===== */
+
+.fd-section-head,
+.section-card-head {
+  background: linear-gradient(90deg, #f0f7f1, #fff) !important;
+  border-bottom: 1px solid #e2ece4 !important;
+}
+
+/* ===== 23. ENTERPRISE — Primary button (neon → brand green) ===== */
+
+.primary-btn {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28) !important;
+}
+.primary-btn:hover {
+  background: linear-gradient(135deg, #166534, #15803d) !important;
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.38) !important;
+}
+
+/* ===== 24. CONTENT SECTION CARDS — Refined borders & shadow ===== */
+
+/* TongQuan overview cards */
+.tq-card {
+  border: 1px solid #e2ece4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+.tq-card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Card headers - subtle gradient */
+.card-header {
+  background: linear-gradient(90deg, #f5fbf6, #fff) !important;
+  border-bottom: 1px solid #e2ece4 !important;
+}
+
+/* Enterprise Farmer network card */
+.farmer-network {
+  border: 1px solid #e2ece4 !important;
+}
+
+/* ===== 25. VIEW TOGGLE BUTTON (active state) ===== */
+
+.view-toggle button.active {
+  background: #fff !important;
+  color: #15803d !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ===== 26. LINK BUTTONS ===== */
+
+.tq-link-btn { color: #16a34a !important; }
+.tq-link-btn:hover { color: #15803d !important; }
+
+/* ===== 27. FARMER — Welcome section accent ===== */
+
+.muavu-welcome {
+  padding-bottom: 0;
+}
+.muavu-welcome p { color: #618968 !important; }
+
+/* ===== 28. ENTERPRISE — stat value ===== */
+
+.stat-value {
+  color: #111812;
+  font-weight: 800 !important;
+}
+
+/* ===== 29a. ENTERPRISE — Orders tab active ===== */
+
+.order-tab.active {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+}
+
+/* ===== 29b. CONTRACT FLOW — Buttons ===== */
+
+.cf-btn.primary {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3) !important;
+}
+.cf-btn.primary:hover {
+  background: linear-gradient(135deg, #166534, #15803d) !important;
+}
+.cf-btn.outline:hover {
+  border-color: #16a34a !important;
+  color: #15803d !important;
+}
+
+/* ===== 29c. CONTRACT DETAIL — Spinner & buttons ===== */
+
+.cd-spinner {
+  border-top-color: #16a34a !important;
+}
+.ssc-btn-primary {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+}
+.ssc-btn-primary:hover {
+  background: linear-gradient(135deg, #166534, #15803d) !important;
+}
+.ssc-btn-outline:hover {
+  border-color: #16a34a !important;
+  color: #15803d !important;
+}
+.cd-back-btn:hover {
+  border-color: #16a34a !important;
+  color: #15803d !important;
+  background: #f0fdf4 !important;
+}
+
+/* ===== 29d. FARMER — Progress fill (season progress bar) ===== */
+
+.progress-fill {
+  background: linear-gradient(90deg, #16a34a, #22c55e) !important;
+}
+
+/* ===== 29e. FARMER — List card left border ===== */
+
+.fd-list-card {
+  border-left-color: #16a34a !important;
+}
+.fd-list-card.lc-active {
+  border-left-color: #16a34a !important;
+}
+
+/* ===== 29f. FARMER — Sec head "Xem tất cả" link ===== */
+
+.fd-sec-head span[style] { color: #16a34a !important; }
+
+/* ===== 29g. ENTERPRISE — Misc neon fixes ===== */
+
+/* Pulse dot (online indicator) */
+.pulse-dot { background: #22c55e !important; }
+
+/* View-all button text */
+.view-all-btn { color: #16a34a !important; }
+
+/* Contract row approve button (more specific than .approve-btn) */
+.contract-actions-row .approve-btn {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+}
+.contract-actions-row .approve-btn:hover {
+  background: linear-gradient(135deg, #166534, #15803d) !important;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3) !important;
+}
+
+/* "Buyer pending" sign state */
+.buyer-pending {
+  border-top-color: #16a34a !important;
+  color: #15803d !important;
+}
+
+/* SIGN BUTTON — the main CTA in contract detail */
+.sign-btn {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3) !important;
+}
+.sign-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #166534, #15803d) !important;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+/* ===== 29h. ENTERPRISE — Chart bars and circular progress ===== */
+
+/* Bar chart in TongQuan */
+.chart-bar {
+  background: linear-gradient(180deg, #16a34a 0%, rgba(22, 163, 74, 0.35) 100%) !important;
+}
+
+/* SVG circular progress ring */
+.progress-ring-fill {
+  stroke: #16a34a !important;
+}
+
+/* ===== 29i. ENTERPRISE — Supplier avatar, verified badge, insight card ===== */
+
+.supplier-avatar {
+  background: linear-gradient(135deg, #16a34a, #22c55e) !important;
+}
+.verified-badge {
+  background: #16a34a !important;
+}
+.insight-card {
+  border-left-color: #16a34a !important;
+}
+
+/* btn-outline hover and btn-primary */
+.btn-outline:hover {
+  border-color: #16a34a !important;
+  color: #15803d !important;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #15803d, #16a34a) !important;
+  color: #fff !important;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #166534, #15803d) !important;
+}
+
+/* OTC step current dot */
+.otc-step.current .step-dot {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.2) !important;
+}
+
+/* ===== 29j. FARMER — Link text, season hover, sign states ===== */
+
+/* Generic .link class */
+.link { color: #16a34a !important; }
+
+/* Season item hover */
+.fd-season .season-item:hover {
+  border-color: #16a34a !important;
+}
+
+/* Seller-pending contract sign state */
+.seller-pending {
+  border-top-color: #16a34a !important;
+  color: #15803d !important;
+}
+
+/* Signature mode tab active text */
+.signature-modes button.active {
+  color: #16a34a !important;
+}
+
+/* ===== 29. PAGE HEADER in both dashboards ===== */
+
+.fd-pg-header {
+  padding: 24px 28px 16px !important;
+}
+.fd-pg-header h2 {
+  background: linear-gradient(135deg, #111812 25%, #15803d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: #111812;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+}
+.fd-pg-subtitle { color: #6b9e77 !important; }

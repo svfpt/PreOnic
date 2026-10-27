@@ -1,0 +1,54 @@
+/* Hành vi responsive dùng chung cho 3 dashboard (Farmer/Enterprise/Admin).
+   Áp dụng qua các class marker: .dash-drawer (sidebar), .dash-overlay, .dash-hamburger. */
+
+/* Nút hamburger — ẩn trên desktop, hiện trên mobile/tablet */
+.dash-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--brand-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.dash-hamburger:hover { background: var(--brand-soft); }
+
+.dash-overlay { display: none; }
+
+@media (max-width: 991px) {
+  .dash-hamburger { display: inline-flex; }
+
+  /* Sidebar trở thành drawer trượt từ trái */
+  .dash-drawer {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 264px !important;
+    max-width: 82vw;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: var(--z-drawer);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+  }
+  .dash-drawer.open { transform: translateX(0); }
+
+  .dash-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: var(--z-overlay);
+    animation: dash-fade 0.2s ease;
+  }
+}
+@keyframes dash-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Bảng tự cuộn ngang trên màn nhỏ */
+.dash-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }

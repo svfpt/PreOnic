@@ -1,0 +1,352 @@
+/* ============================================
+   CONTACT PAGE — Redesign v2
+   ============================================ */
+
+.contact-page-v2 {
+  background: #f7faf8;
+  padding-top: 70px;
+  min-height: 100vh;
+}
+
+/* ---------- HERO ---------- */
+.ctv2-hero {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #ffffff;
+  padding: 90px 0 140px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.ctv2-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgba(13, 51, 32, 0.85) 0%,
+    rgba(15, 80, 50, 0.65) 55%,
+    rgba(15, 80, 50, 0.3) 100%
+  );
+}
+
+.ctv2-hero-inner {
+  position: relative;
+  z-index: 2;
+}
+
+.ctv2-hero-content {
+  max-width: 760px;
+  text-align: left;
+}
+
+.ctv2-hero-title {
+  font-size: 50px;
+  font-weight: 800;
+  margin-bottom: 18px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.ctv2-hero-desc {
+  font-size: 17px;
+  line-height: 1.65;
+  opacity: 0.92;
+  margin-bottom: 36px;
+  max-width: 540px;
+}
+
+.ctv2-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+
+.ctv2-trust {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ctv2-trust-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #4ade80;
+  backdrop-filter: blur(6px);
+}
+
+.ctv2-trust-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.ctv2-trust-desc {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.ctv2-wave {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 90px;
+  display: block;
+  z-index: 1;
+}
+
+/* ---------- CONTENT ---------- */
+.ctv2-content {
+  padding: 40px 0 40px;
+  background: #f7faf8;
+}
+
+/* Curved wave flowing into dark footer */
+.ctv2-footer-wave {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 80px;
+  margin-bottom: -1px;
+  background: #f7faf8;
+}
+
+.ctv2-footer-wave svg {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ----- Form card ----- */
+.ctv2-form-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 40px;
+  box-shadow: 0 4px 24px rgba(15, 47, 28, 0.06);
+  overflow: hidden;
+}
+
+.ctv2-deco-leaf {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ctv2-deco-leaf-1 {
+  width: 180px;
+  height: 180px;
+  top: -30px;
+  right: -30px;
+}
+
+.ctv2-deco-leaf-2 {
+  width: 220px;
+  height: 220px;
+  bottom: -60px;
+  left: -40px;
+  transform: rotate(180deg);
+}
+
+.ctv2-form-title,
+.ctv2-info-title {
+  position: relative;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f1d12;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  z-index: 2;
+}
+
+.ctv2-title-underline {
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: #16a34a;
+  border-radius: 2px;
+}
+
+.ctv2-form-sub {
+  position: relative;
+  z-index: 2;
+  color: #6b7c70;
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+
+.ctv2-form {
+  position: relative;
+  z-index: 2;
+}
+
+.ctv2-form .form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.ctv2-form .form-control {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 14.5px;
+  background: #fafdfb;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.ctv2-form .form-control:focus {
+  border-color: #16a34a;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.ctv2-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #ffffff;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14.5px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ctv2-submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(22, 163, 74, 0.3);
+}
+
+/* ----- Info card ----- */
+.ctv2-info-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 36px;
+  box-shadow: 0 4px 24px rgba(15, 47, 28, 0.06);
+  margin-bottom: 20px;
+}
+
+.ctv2-info-item {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.ctv2-info-item:last-of-type {
+  margin-bottom: 4px;
+}
+
+.ctv2-info-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.ctv2-info-item h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f1d12;
+  margin: 0 0 4px 0;
+}
+
+.ctv2-info-item p {
+  font-size: 13.5px;
+  color: #6b7c70;
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* ----- Social card ----- */
+.ctv2-social-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px 28px;
+  box-shadow: 0 4px 24px rgba(15, 47, 28, 0.06);
+}
+
+.ctv2-social-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f1d12;
+  margin-bottom: 16px;
+}
+
+.ctv2-social-icons {
+  display: flex;
+  gap: 12px;
+}
+
+.ctv2-social-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.ctv2-social-icon:hover {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 991px) {
+  .ctv2-hero {
+    padding: 70px 0 120px;
+  }
+  .ctv2-hero-title {
+    font-size: 38px;
+  }
+}
+
+@media (max-width: 600px) {
+  .ctv2-hero-title {
+    font-size: 28px;
+  }
+  .ctv2-hero-desc {
+    font-size: 15px;
+  }
+  .ctv2-hero-content {
+    text-align: center;
+  }
+  .ctv2-trust-row {
+    justify-content: center;
+    gap: 18px;
+  }
+  .ctv2-form-card,
+  .ctv2-info-card {
+    padding: 24px;
+  }
+}

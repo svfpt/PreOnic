@@ -1,0 +1,20 @@
+# Dữ liệu nhạy cảm — KHÔNG commit (chứa email/hash mật khẩu/refresh token)
+# Local dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+Account.txt
+
+# Ghi chú / template cá nhân
+Tối ưu hệ thống.txt
+
+# OS
+.DS_Store
+Thumbs.db
