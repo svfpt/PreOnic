@@ -12,7 +12,7 @@ const log = createLogger('Server');
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
 connectDB(() => {
