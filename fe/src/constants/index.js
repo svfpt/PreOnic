@@ -213,7 +213,8 @@ export const INSURANCE_PROGRAMS = [
 
 // ===== WALLET / TOPUP =====
 export const GATEWAY_MIN_TOPUP = 10000; // VND
-export const TOPUP_PRESETS = [100_000_000, 500_000_000, 1_000_000_000, 5_000_000_000, 10_000_000_000, 100_000_000_000]; // VND
+export const GATEWAY_MAX_TOPUP = 500_000_000; // VND
+export const TOPUP_PRESETS = [10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000]; // VND
 
 // ===== FILE UPLOAD =====
 export const FILE_SIZE_LIMIT = 5 * 1024 * 1024; // 5 MB

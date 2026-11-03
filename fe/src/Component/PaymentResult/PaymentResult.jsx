@@ -1,45 +1,63 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { useToast } from "../../contexts/ToastContext";
 import paymentService from "../../services/payment.service";
 import "./PaymentResult.css";
+
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLL_ATTEMPTS = 60;
 
 export default function PaymentResult({ type }) {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState("verifying");
   const [result, setResult] = useState(null);
+  const [retry, setRetry] = useState(0);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const toast = useToast();
 
   const orderCode = searchParams.get("orderCode");
 
   useEffect(() => {
-    if (type === "success" && orderCode) {
-      paymentService
-        .verifyTopup(orderCode)
-        .then((res) => {
-          if (res.data?.data?.success) {
-            setStatus("success");
-            setResult(res.data.data);
-            toast.success("Nạp tiền thành công!");
-          } else {
-            setStatus("pending");
-          }
-        })
-        .catch(() => {
-          setStatus("error");
-          toast.error("Không thể xác minh giao dịch");
-        });
-    } else if (type === "cancel") {
-      setStatus("cancelled");
-      if (orderCode) {
-        paymentService.cancelTopup(orderCode).catch(() => {});
-      }
+    let stopped = false;
+    let timer;
+    let attempts = 0;
+    if (!orderCode || !/^\d+$/.test(orderCode) || !Number.isSafeInteger(Number(orderCode)) || Number(orderCode) <= 0) {
+      setStatus("error");
+      return undefined;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderCode, type]);
+    setStatus("verifying");
+    setResult(null);
+    const check = async () => {
+      try {
+        const res = await paymentService.verifyTopup(orderCode);
+        if (stopped) return;
+        const data = res.data?.data;
+        if (data?.success) {
+          setStatus("success");
+          setResult(data);
+        } else if (data?.status === "cancelled") {
+          setStatus("cancelled");
+        } else if (data?.status === "failed") {
+          setStatus("error");
+        } else {
+          if (++attempts < MAX_POLL_ATTEMPTS) {
+            setStatus("pending");
+            timer = setTimeout(check, POLL_INTERVAL_MS);
+          } else {
+            setStatus("timeout");
+          }
+        }
+      } catch {
+        if (!stopped) setStatus("error");
+      }
+    };
+    const init = async () => {
+      if (type === "cancel" && retry === 0) await paymentService.cancelTopup(orderCode).catch(() => {});
+      if (!stopped) await check();
+    };
+    init();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [orderCode, type, retry]);
 
   const dashboardPath = user?.role === "farmer" ? "/farmer" : "/enterprise";
 
@@ -68,12 +86,12 @@ export default function PaymentResult({ type }) {
               +{result?.transaction?.amount?.toLocaleString("vi-VN")} VND
             </p>
             <p className="pr-balance">
-              Số dư mới: <strong>{result?.newBalance?.toLocaleString("vi-VN")} VND</strong>
+              Số dư sau giao dịch: <strong>{result?.newBalance?.toLocaleString("vi-VN")} VND</strong>
             </p>
           </>
         )}
 
-        {status === "pending" && (
+        {["pending", "timeout"].includes(status) && (
           <>
             <div className="pr-icon pending">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -81,8 +99,8 @@ export default function PaymentResult({ type }) {
                 <path d="M12 6v6l4 2" strokeLinecap="round" />
               </svg>
             </div>
-            <h2>Giao dịch đang xử lý</h2>
-            <p>Hệ thống sẽ tự động cập nhật khi thanh toán hoàn tất</p>
+            <h2>{status === "timeout" ? "Chưa nhận được xác nhận thanh toán" : "Giao dịch đang xử lý"}</h2>
+            <p>{status === "timeout" ? "Bạn có thể kiểm tra lại hoặc quay về ví để theo dõi. Nếu đã chuyển tiền, không chuyển lại." : "Hệ thống đang tự động kiểm tra trạng thái thanh toán."}</p>
           </>
         )}
 
@@ -112,6 +130,9 @@ export default function PaymentResult({ type }) {
         )}
 
         <div className="pr-actions">
+          {["pending", "timeout", "error"].includes(status) && (
+            <button className="pr-btn secondary" onClick={() => setRetry(value => value + 1)}>Kiểm tra lại</button>
+          )}
           <button className="pr-btn primary" onClick={() => navigate(dashboardPath, { state: { activeNav: "vi", activeTab: "vi" } })}>
             Về ví của tôi
           </button>

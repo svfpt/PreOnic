@@ -22,7 +22,7 @@ GHI CHÚ QUAN TRỌNG
   - Quản lý sản phẩm nông sản.
   - Tạo, ký và theo dõi hợp đồng.
   - Escrow / ký quỹ / giải ngân theo milestone.
-  - Ví ảo và nạp tiền qua SePay.
+  - Ví ảo và nạp tiền qua payOS.
   - Nhắn tin, thông báo, cảnh báo thời tiết, đánh giá đối tác.
 
 1.2. Kiến trúc tổng thể
@@ -398,7 +398,7 @@ Trường chính
 - `type`.
 - `amount`.
 - `status`.
-- `paymentMethod`: `payos | sepay | internal | demo`.
+- `paymentMethod`: `payos | internal | demo | bank_transfer`.
 - `gatewayRef`.
 - `orderCode`.
 - `description`.
@@ -1095,20 +1095,13 @@ POST /api/v1/escrow/:id/dispute
 POST /api/v1/payment/webhook
 - Quyền: Công khai
 - Mục đích:
-  - SePay callback.
-- Body SePay chính:
-  - `id`
-  - `gateway`
-  - `transactionDate`
-  - `accountNumber`
+  - payOS callback, xác thực chữ ký bằng SDK và đối soát trạng thái qua API payOS.
+- Body payOS chính:
   - `code`
-  - `content`
-  - `transferType`
-  - `transferAmount`
-  - `accumulated`
-  - `subAccount`
-  - `referenceCode`
-  - `description`
+  - `desc`
+  - `success`
+  - `signature`
+  - `data`: `orderCode`, `amount`, `paymentLinkId`, `currency`, `code` và thông tin giao dịch.
 - Phản hồi:
   - `{ success: true }`
 
@@ -1344,8 +1337,8 @@ POST /api/v1/partner-ratings
 4.1. Điều kiện tiên quyết
 - Node.js: khuyến nghị 18+ hoặc 20+.
 - npm.
-- MongoDB local hoặc MongoDB Atlas.
-- Nếu dùng SePay thật:
+- MongoDB replica set local hoặc MongoDB Atlas để hỗ trợ transaction khi cộng ví.
+- Nếu dùng payOS thật:
   - Cần có URL public cho backend để nhận webhook.
 - Nếu dùng email thật:
   - Cần có `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`.
@@ -1383,14 +1376,12 @@ POST /api/v1/partner-ratings
 - Biến bổ sung nếu dùng thời tiết:
   - `OPENWEATHER_API_KEY` hoặc `OWM_API_KEY` hoặc `WEATHER_API_KEY`
   - Nếu không có, hệ thống fallback sang Open-Meteo.
-- Biến bổ sung nếu dùng SePay:
-  - `SEPAY_MERCHANT_ID`
-  - `SEPAY_SECRET_KEY` hoặc `SEPAY_API_KEY`
-  - `SEPAY_ACCOUNT_NUMBER`
-  - `SEPAY_BANK_CODE`
-  - `SEPAY_ACCOUNT_NAME`
-  - `PUBLIC_API_URL` hoặc `BACKEND_PUBLIC_URL` hoặc `APP_PUBLIC_URL`
-  - `SEPAY_WEBHOOK_SECRET` (tùy chọn nhưng nên có)
+- Biến bổ sung nếu dùng payOS:
+  - `PAYOS_CLIENT_ID`
+  - `PAYOS_API_KEY`
+  - `PAYOS_CHECKSUM_KEY`
+  - `FRONTEND_URL`: dùng để tạo URL quay về sau thanh toán hoặc hủy.
+  - Đăng ký webhook `https://<backend-public>/api/v1/payment/webhook` trên kênh payOS.
 
 4.5. Cấu hình frontend
 - Copy file:
@@ -1446,7 +1437,7 @@ POST /api/v1/partner-ratings
   - Tạo dữ liệu sản phẩm mẫu.
 
 4.10. Lưu ý deployment
-- SePay webhook chỉ hoạt động khi backend có URL public.
+- payOS webhook chỉ hoạt động khi backend có URL public.
 - CORS cần cho phép đúng `FRONTEND_URL`.
 - Upload hiện đang lưu local disk, cần quản lý persistent storage khi deploy server thật.
 - Build frontend hiện sử dụng CRA, build folder sẵn sàng cho serve static.
@@ -1488,7 +1479,7 @@ Chưa chạy tay tự động trong lần khảo sát này
 - Đăng ký/đăng nhập bằng tài khoản mới.
 - CRUD sản phẩm bằng thao tác giao diện.
 - Luồng ký hợp đồng đầy đủ bằng dữ liệu thật.
-- Luồng SePay thực.
+- Luồng payOS thực.
 - Luồng dispute và resolve dispute.
 
 Lý do
@@ -1585,7 +1576,7 @@ Gợi ý lưu ảnh theo đúng tên để đưa vào báo cáo Word/PDF:
 `14_wallet_topup.png`
 - Nội dung cần chụp:
   - Màn hình ví / nạp tiền.
-  - QR SePay hoặc demo topup.
+  - Trang thanh toán payOS hoặc demo topup trong môi trường thử nghiệm.
 - Mục tiêu chứng minh:
   - Ví ảo và nạp tiền.
 
@@ -1758,32 +1749,25 @@ Giải thích
 - Đây là phần rất quan trọng vì nó ảnh hưởng trực tiếp đến dòng tiền trong escrow.
 - Frontend và backend đều phải thống nhất logic này để tránh sai lệch.
 
-6.5. Tạo topup SePay và trả thông tin QR
+6.5. Tạo topup payOS và chuyển sang trang thanh toán
 Nguồn: `be/src/services/payment.service.ts`
 
 ```ts
 return {
-  paymentMethod: 'sepay',
+  paymentMethod: 'payos',
   orderCode,
-  transferCode,
   transactionId: transaction._id,
   amount,
   expiresInMinutes: 15,
-  bankInfo: {
-    bankCode: sepayConfig.bankCode,
-    accountNumber: sepayConfig.accountNumber,
-    accountName: sepayConfig.accountName,
-  },
-  qrCodeUrl: buildQrCodeUrl(sepayConfig, amount, transferCode),
-  webhookUrl: sepayConfig.webhookUrl,
-  note: 'Chuyển khoản đúng số tiền và đúng nội dung để hệ thống tự động cộng ví.',
+  expiredAt,
+  checkoutUrl: link.checkoutUrl,
 };
 ```
 
 Giải thích
-- Backend không redirect người dùng đi thanh toán như PayOS cũ, mà trả thông tin để frontend hiện QR/manual transfer.
-- `orderCode` và `transferCode` là khóa để webhook map giao dịch vào user.
-- Luồng này phù hợp với kiểu nạp tiền chuyển khoản nội địa.
+- Frontend chuyển thẳng sang `checkoutUrl` trong cùng tab khi tạo lệnh thành công.
+- `orderCode` liên kết giao dịch payOS với lệnh nạp ví và người dùng.
+- Chỉ cộng ví khi đối soát API payOS xác nhận `PAID`; cập nhật số dư và giao dịch trong cùng MongoDB transaction.
 
 6.6. Guard route theo vai trò trên frontend
 Nguồn: `fe/src/Component/ProtectedRoute/ProtectedRoute.jsx`
