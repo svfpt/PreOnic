@@ -99,6 +99,7 @@ function ContractFlow() {
   const [customDeposit, setCustomDeposit] = useState("");
   const [customOnDelivery, setCustomOnDelivery] = useState("");
   const [riskSharingTerms, setRiskSharingTerms] = useState("");
+  const [breachCompensationRate, setBreachCompensationRate] = useState("8");
   const [agreed, setAgreed] = useState({ terms: false, preon: false });
   const [showTermsModal, setShowTermsModal] = useState(null); // 'contract' | 'service'
 
@@ -144,6 +145,8 @@ function ContractFlow() {
       if (requestedQuantity <= 0) return false;
       if (selectedProduct && quantityExceedsAvailable) return false;
       if (deliveryBeforeHarvest) return false;
+      const compensationRate = Number(breachCompensationRate);
+      if (!Number.isFinite(compensationRate) || compensationRate <= 0 || compensationRate > 100) return false;
       if (form.paymentTerms === "custom" && !customDepositValid()) return false;
       return true;
     }
@@ -165,7 +168,8 @@ function ContractFlow() {
           pricePerUnit: parseFloat(form.pricePerUnit),
           deliveryDate: form.deliveryDate,
           paymentTerms: form.paymentTerms,
-          qualityRequirements: form.notes,
+          notes: form.notes,
+          breachCompensationRate: Number(breachCompensationRate),
           farmerName: form.farmerName,
           enterpriseName: form.enterpriseName,
           productId: productId || undefined,
@@ -194,18 +198,7 @@ function ContractFlow() {
         const result = await contractService.create(contractData);
         setCreatedContract(result.data?.contract || result.data);
 
-        // Auto-sign the contract for the current user
-        if (result.data?.contract?._id || result.data?._id) {
-          const contractId = result.data?.contract?._id || result.data?._id;
-          try {
-            await contractService.sign(contractId);
-          } catch (signErr) {
-            // Non-critical: contract was created, sign can be done later
-            console.warn('Auto-sign failed:', signErr);
-          }
-        }
-
-        toast.success('Hợp đồng đã được tạo và ký thành công!');
+        toast.success('Đã tạo hợp đồng. Hai bên cần xác thực OTP để hoàn tất ký kết.');
         setCurrentStep(s => s + 1);
       } catch (err) {
         const msg = err?.message || err?.response?.data?.message || 'Tạo hợp đồng thất bại';
@@ -377,6 +370,21 @@ function ContractFlow() {
                     <textarea value={form.notes} onChange={e => handleChange("notes", e.target.value)} rows={3} placeholder="Yêu cầu đặc biệt, tiêu chuẩn chất lượng..." />
                   </div>
 
+                  <div className="cf-field full">
+                    <label>Mức đền bù khi vi phạm (%) *</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      max="100"
+                      step="0.1"
+                      value={breachCompensationRate}
+                      onChange={e => setBreachCompensationRate(e.target.value)}
+                    />
+                    <p className="cf-field-note">
+                      Tính trên giá trị phần nghĩa vụ bị vi phạm. Hai bên sẽ cùng xác nhận mức này khi ký hợp đồng.
+                    </p>
+                  </div>
+
                   {/* Optional Insurance Section */}
                   <div className="cf-insurance-toggle">
                     <label className="cf-toggle-label">
@@ -446,6 +454,7 @@ function ContractFlow() {
                   <div className="cf-summary-row"><span>Đặt cọc:</span><strong>{form.paymentTerms === "50_50" ? "50% đặt cọc / 50% khi nhận hàng" : form.paymentTerms === "30_70" ? "30% đặt cọc / 70% khi nhận hàng" : form.paymentTerms === "100_delivery" ? "100% khi nhận hàng" : form.paymentTerms === "100_upfront" ? "100% trả trước" : form.paymentTerms === "custom" ? `${customDeposit}% đặt cọc / ${customOnDelivery}% khi nhận hàng` : ""}</strong></div>
                   <div className="cf-summary-row"><span>Nhà sản xuất:</span><strong>{form.farmerName || "--"}</strong></div>
                   <div className="cf-summary-row"><span>Doanh nghiệp:</span><strong>{form.enterpriseName || "--"}</strong></div>
+                  <div className="cf-summary-row"><span>Đền bù khi vi phạm:</span><strong>{breachCompensationRate}% giá trị phần nghĩa vụ bị vi phạm</strong></div>
 
                   <hr />
                   <div className="cf-summary-row total"><span>Tổng giá trị:</span><strong>{formatPrice(totalValue)}</strong></div>
@@ -495,7 +504,7 @@ function ContractFlow() {
             {/* Step 3: Sign */}
             {currentStep === 3 && (
               <div className="cf-card">
-                <h3>Ký hợp đồng điện tử</h3>
+                <h3>Xác nhận nội dung hợp đồng</h3>
 
                 <div className="cf-contract-doc">
                   <div className="cf-doc-header">
@@ -508,6 +517,8 @@ function ContractFlow() {
                     <p>Ngày giao hàng: <strong>{form.deliveryDate}</strong></p>
                     <p>Bên bán: {form.farmerName || "--"} | Bên mua: {form.enterpriseName || "--"}</p>
                     <p>Trung gian: <strong>{COMPANY.FULL_NAME}</strong></p>
+                    <p>Hợp đồng có hiệu lực khi cả hai bên ký. Kể từ khi một bên đã ký, không bên nào được đơn phương chấm dứt hợp đồng; hai bên cam kết thực hiện đầy đủ nghĩa vụ đến khi giao nhận và thanh toán hoàn tất.</p>
+                    <p>Đền bù khi vi phạm: <strong>{breachCompensationRate}% giá trị phần nghĩa vụ bị vi phạm</strong>, được xem xét theo thỏa thuận và quy định pháp luật áp dụng.</p>
                   </div>
                 </div>
 
@@ -540,11 +551,13 @@ function ContractFlow() {
                             <p>Bên mua cam kết thanh toán đúng hạn theo lịch thanh toán đã thỏa thuận. Mọi khoản thanh toán được thực hiện qua hệ thống Ký quỹ {COMPANY.NAME} Escrow để bảo đảm an toàn cho cả hai bên. Bên mua có quyền từ chối hoặc yêu cầu bồi thường nếu sản phẩm không đạt tiêu chuẩn cam kết.</p>
                             <h4>4. Cơ chế ký quỹ</h4>
                             <p>Toàn bộ giá trị hợp đồng (hoặc tỷ lệ đặt cọc đã thỏa thuận) được giữ trong tài khoản Escrow của {COMPANY.NAME} cho đến khi Bên mua xác nhận nghiệm thu hàng hóa. Tiền chỉ được giải ngân cho Bên bán sau khi có xác nhận giao hàng đạt yêu cầu. Nếu phát sinh tranh chấp, {COMPANY.NAME} sẽ đóng vai trò trung gian hòa giải.</p>
-                            <h4>5. Vi phạm và bồi thường</h4>
-                            <p>Nếu Bên bán vi phạm (giao hàng trễ, không đủ số lượng, không đạt chất lượng), Bên mua có quyền yêu cầu bồi thường tối đa 20% giá trị hợp đồng. Nếu Bên mua vi phạm (từ chối nhận hàng không có lý do chính đáng, chậm thanh toán), Bên bán có quyền giữ toàn bộ tiền đặt cọc.</p>
-                            <h4>6. Tranh chấp</h4>
+                            <h4>5. Thực hiện hợp đồng và không đơn phương chấm dứt</h4>
+                            <p>Hợp đồng có hiệu lực kể từ khi cả hai bên hoàn tất ký điện tử. Từ thời điểm đó, Bên bán có trách nhiệm giao đúng sản phẩm, số lượng, chất lượng và thời hạn đã thỏa thuận; Bên mua có trách nhiệm nhận hàng đạt thỏa thuận và thanh toán đúng hạn. Kể từ khi một bên đã ký, không bên nào được đơn phương hủy hoặc chấm dứt hợp đồng. Việc chấm dứt chỉ được thực hiện khi có thỏa thuận bằng văn bản của cả hai bên hoặc trường hợp pháp luật quy định.</p>
+                            <h4>6. Vi phạm và đền bù</h4>
+                            <p>Bên vi phạm có trách nhiệm đền bù theo mức <strong>{breachCompensationRate}% giá trị phần nghĩa vụ bị vi phạm</strong>, căn cứ vào nội dung hợp đồng, mức độ vi phạm và quy định pháp luật áp dụng. Điều khoản này áp dụng cho vi phạm của cả Bên bán và Bên mua; không bên nào được tự ý giữ tiền hoặc miễn thực hiện nghĩa vụ ngoài thỏa thuận và quy định pháp luật.</p>
+                            <h4>7. Tranh chấp</h4>
                             <p>Mọi tranh chấp phát sinh sẽ được giải quyết thông qua cơ chế Dispute Resolution của {COMPANY.NAME} trong vòng 15 ngày làm việc. Nếu không đạt được thỏa thuận, hai bên có thể yêu cầu Trọng tài Thương mại theo quy định pháp luật Việt Nam.</p>
-                            <h4>7. Bảo mật thông tin</h4>
+                            <h4>8. Bảo mật thông tin</h4>
                             <p>Tất cả thông tin trong hợp đồng (giá cả, sản lượng, điều khoản) được bảo mật tuyệt đối. Không bên nào được tiết lộ thông tin hợp đồng cho bên thứ ba khi chưa có sự đồng ý bằng văn bản của bên còn lại, ngoại trừ các trường hợp theo yêu cầu của pháp luật.</p>
                           </>
                         ) : (
@@ -555,7 +568,7 @@ function ContractFlow() {
                             <ul>
                               <li><strong>Bảo vệ Escrow:</strong> Toàn bộ tiền giao dịch được giữ an toàn trong tài khoản Escrow cho đến khi nghiệm thu hoàn tất.</li>
                               <li><strong>Xác minh đối tác:</strong> {COMPANY.NAME} xác minh danh tính và uy tín của cả Nông dân lẫn Doanh nghiệp trên nền tảng.</li>
-                              <li><strong>Hợp đồng điện tử có giá trị pháp lý:</strong> Hợp đồng được ký số và lưu trữ bảo mật theo tiêu chuẩn pháp luật Việt Nam.</li>
+                              <li><strong>Xác thực khi ký:</strong> Mỗi bên xác nhận chữ ký qua mã OTP gửi đến email tài khoản; đây chưa phải chữ ký số được chứng thực bởi nhà cung cấp dịch vụ tin cậy.</li>
                               <li><strong>Giải quyết tranh chấp:</strong> Đội ngũ {COMPANY.NAME} hỗ trợ hòa giải miễn phí trong vòng 15 ngày làm việc.</li>
                               <li><strong>Theo dõi đơn hàng:</strong> Hệ thống tracking minh bạch từ trang trại đến điểm giao hàng.</li>
                               <li><strong>Hỗ trợ 24/7:</strong> Đội ngũ hỗ trợ kỹ thuật và tư vấn sẵn sàng phục vụ.</li>
@@ -592,14 +605,15 @@ function ContractFlow() {
             {currentStep === 4 && (
               <div className="cf-card center">
                 <div className="cf-done-icon"><span className="done-check-icon" /></div>
-                <h3>Hợp đồng đã được ký thành công!</h3>
+                <h3>Hợp đồng đang chờ ký</h3>
                 <p>Mã hợp đồng: <strong>{createdContract?.contractCode || `PRE-${new Date().getFullYear()}-XXXX`}</strong></p>
+                <p>Hợp đồng chỉ được ghi nhận đã ký sau khi cả hai bên xác thực mã OTP gửi đến email tài khoản.</p>
 
                 <div className="cf-done-summary">
                   <div><span>Sản phẩm:</span><strong>{form.productName}</strong></div>
                   <div><span>Giá trị:</span><strong>{formatPrice(createdContract?.totalValue || totalValue)}</strong></div>
                   <div><span>Phí {COMPANY.NAME}:</span><strong>{formatPrice(createdContract?.commission || commission)}</strong></div>
-                  <div><span>Trạng thái:</span><strong className="text-success">{CONTRACT_STATUS.ACTIVE}</strong></div>
+                  <div><span>Trạng thái:</span><strong className="text-success">Chờ ký</strong></div>
                 </div>
 
                 <div className="cf-done-actions">
@@ -618,7 +632,7 @@ function ContractFlow() {
               <div className="cf-nav">
                 <button className="cf-btn outline" onClick={prevStep} disabled={currentStep === 0}>Quay lại</button>
                 <button className="cf-btn primary" onClick={nextStep} disabled={!canAdvance() || loading}>
-                  {loading ? "Đang xử lý..." : currentStep === 3 ? "Ký hợp đồng" : "Tiếp tục"}
+                  {loading ? "Đang xử lý..." : currentStep === 3 ? "Tạo hợp đồng" : "Tiếp tục"}
                 </button>
               </div>
             )}

@@ -2,9 +2,9 @@
 // Mục tiêu: cả hai bên đều thấy CÙNG MỘT bản hợp đồng điện tử (layout văn bản đầy đủ
 // + cột tóm tắt + bảng ký), thống nhất trải nghiệm trên toàn nền tảng PreOnic.
 //
-// Ký kết: ký trực tiếp sau khi tick xác nhận điều khoản (đã bỏ OTP — xác thực qua phiên đăng nhập).
+// Ký kết được xác nhận bằng OTP gửi đến email tài khoản của từng bên.
 import { useState } from "react";
-import { FiFileText, FiShield, FiCheckCircle, FiClock, FiArrowLeft } from "react-icons/fi";
+import { FiFileText, FiShield, FiCheckCircle, FiClock, FiArrowLeft, FiPrinter } from "react-icons/fi";
 import { useToast } from "../../contexts/ToastContext";
 import { COMPANY } from "../../constants";
 import contractService from "../../services/contract.service";
@@ -50,6 +50,7 @@ function normalize(c) {
     totalValue: c.totalValue || 0,
     depositAmount: c.depositAmount || 0,
     depositPercentage: c.depositPercentage,
+    breachCompensationRate: c.breachCompensationRate ?? 8,
     commission: c.commission || 0,
     commissionRate: c.commissionRate || COMPANY.COMMISSION_RATE,
     paymentTerms: c.paymentTerms,
@@ -58,6 +59,7 @@ function normalize(c) {
     status: c.status,
     signedByFarmer: !!c.signedByFarmer,
     signedByEnterprise: !!c.signedByEnterprise,
+    signatures: Array.isArray(c.signatures) ? c.signatures : [],
     cancelReason: c.cancelReason || c.cancellationReason,
     createdAt: c.createdAt,
   };
@@ -76,6 +78,9 @@ export default function ContractDetailView({
   const [agreed, setAgreed] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
   const [signSuccess, setSignSuccess] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -85,7 +90,8 @@ export default function ContractDetailView({
   const mySigned = isFarmer ? c.signedByFarmer : c.signedByEnterprise;
   const otherSigned = isFarmer ? c.signedByEnterprise : c.signedByFarmer;
   const canSign = c.status === "pending" && !mySigned;
-  const canCancel = c.status === "pending" || c.status === "approved" || c.status === "active";
+  const canCancel =
+    c.status === "pending" && !c.signedByFarmer && !c.signedByEnterprise;
 
   const notify = (msg, type = "success") => {
     if (toast?.success && type === "success") toast.success(msg);
@@ -93,11 +99,25 @@ export default function ContractDetailView({
     else if (toast?.showToast) toast.showToast(msg, type);
   };
 
+  const handleRequestOtp = async () => {
+    if (requestingOtp) return;
+    setRequestingOtp(true);
+    try {
+      await contractService.requestSignOtp(c._id);
+      setOtpSent(true);
+      notify("Mã OTP đã được gửi đến email tài khoản của bạn.");
+    } catch (err) {
+      notify(err?.message || "Gửi mã OTP thất bại.", "error");
+    } finally {
+      setRequestingOtp(false);
+    }
+  };
+
   const handleSign = async () => {
-    if (!agreed || signing) return;
+    if (!agreed || signing || !/^\d{6}$/.test(otp)) return;
     setSigning(true);
     try {
-      await contractService.sign(c._id);
+      await contractService.sign(c._id, otp);
       setSignSuccess(true);
       onChanged?.();
     } catch (err) {
@@ -128,6 +148,12 @@ export default function ContractDetailView({
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const signedByRole = role => c.signatures.find(signature => signature.role === role);
+  const formatSignedAt = value => {
+    const date = value ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? date.toLocaleString("vi-VN") : "";
   };
 
   // ===== Màn hình ký thành công =====
@@ -164,6 +190,9 @@ export default function ContractDetailView({
           <FiArrowLeft size={15} /> Danh sách hợp đồng
         </button>
         <div className="cdv-topnav-right">
+          <button className="cdv-back-btn cdv-print-btn" onClick={() => window.print()}>
+            <FiPrinter size={15} /> In / lưu PDF
+          </button>
           <span className="cdv-code-badge">{c.contractCode}</span>
           <span className={`cdv-status cdv-status-${c.status}`}>{STATUS_VI[c.status] || c.status}</span>
         </div>
@@ -235,18 +264,59 @@ export default function ContractDetailView({
               </div>
             </section>
 
+            <section className="cdv-doc-section">
+              <h4>5. CAM KẾT THỰC HIỆN, KHÔNG ĐƠN PHƯƠNG CHẤM DỨT VÀ ĐỀN BÙ</h4>
+              <div className="cdv-table">
+                <div className="cdv-row">
+                  <span>Hiệu lực và thực hiện</span>
+                  <strong>
+                    Hợp đồng có hiệu lực khi cả hai bên ký. Bên bán giao hàng đúng thỏa thuận; Bên mua nhận hàng đạt yêu cầu và thanh toán đầy đủ, đúng hạn. Hai bên có trách nhiệm hoàn tất nghĩa vụ đến khi giao nhận và thanh toán xong.
+                  </strong>
+                </div>
+                <div className="cdv-row">
+                  <span>Chấm dứt hợp đồng</span>
+                  <strong>
+                    Sau khi một bên đã ký, không bên nào được đơn phương hủy hoặc chấm dứt hợp đồng. Việc chấm dứt chỉ theo thỏa thuận bằng văn bản của cả hai bên hoặc trường hợp pháp luật quy định.
+                  </strong>
+                </div>
+                <div className="cdv-row">
+                  <span>Đền bù khi vi phạm</span>
+                  <strong>
+                    {c.breachCompensationRate}% giá trị phần nghĩa vụ bị vi phạm; áp dụng cho vi phạm của cả hai bên theo thỏa thuận và quy định pháp luật.
+                  </strong>
+                </div>
+              </div>
+            </section>
+
             <div className="cdv-signatures">
               <div className={`cdv-sig ${c.signedByEnterprise ? "signed" : "pending"}`}>
                 <p className="cdv-sig-name">{c.enterpriseName}</p>
                 <p className="cdv-sig-stat">{c.signedByEnterprise ? "✓ Đã ký" : "Chờ ký"}</p>
+                {signedByRole("enterprise") && (
+                  <p className="cdv-sig-evidence">
+                    {signedByRole("enterprise").signerEmail}<br />
+                    {formatSignedAt(signedByRole("enterprise").signedAt)}
+                    <br />SHA-256: {signedByRole("enterprise").contractHash}
+                  </p>
+                )}
                 <span className="cdv-sig-role">BÊN MUA</span>
               </div>
               <div className={`cdv-sig ${c.signedByFarmer ? "signed" : "pending"}`}>
                 <p className="cdv-sig-name">{c.farmerName}</p>
                 <p className="cdv-sig-stat">{c.signedByFarmer ? "✓ Đã ký" : "Chờ ký"}</p>
+                {signedByRole("farmer") && (
+                  <p className="cdv-sig-evidence">
+                    {signedByRole("farmer").signerEmail}<br />
+                    {formatSignedAt(signedByRole("farmer").signedAt)}
+                    <br />SHA-256: {signedByRole("farmer").contractHash}
+                  </p>
+                )}
                 <span className="cdv-sig-role">BÊN BÁN</span>
               </div>
             </div>
+            <p className="cdv-signature-note">
+              Ghi nhận ký qua OTP email; mã SHA-256 dùng để đối chiếu nội dung được ký. Đây không phải chứng thư chữ ký số của nhà cung cấp dịch vụ tin cậy.
+            </p>
 
             {(c.status === "cancelled" || c.status === "rejected") && c.cancelReason && (
               <div className="cdv-cancel-reason">
@@ -290,10 +360,33 @@ export default function ContractDetailView({
                 </div>
               </div>
               <div className="cdv-sign-foot">
-                <button className="cdv-btn-primary cdv-btn-full" disabled={!agreed || signing} onClick={handleSign}>
-                  {signing ? "Đang xử lý..." : "Ký hợp đồng ngay"}
-                </button>
-                <p className="cdv-security"><FiShield size={12} /> Mã hóa SSL 256-bit · Xác thực qua tài khoản đăng nhập</p>
+                {!otpSent ? (
+                  <button className="cdv-btn-primary cdv-btn-full" disabled={!agreed || requestingOtp} onClick={handleRequestOtp}>
+                    {requestingOtp ? "Đang gửi mã..." : "Gửi mã OTP để ký"}
+                  </button>
+                ) : (
+                  <>
+                    <label className="cdv-otp-label" htmlFor="contract-sign-otp">Mã OTP gửi đến email tài khoản</label>
+                    <input
+                      id="contract-sign-otp"
+                      className="cdv-otp-input"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={otp}
+                      onChange={event => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      aria-label="Mã OTP gồm 6 chữ số"
+                    />
+                    <button className="cdv-btn-primary cdv-btn-full" disabled={!agreed || signing || !/^\d{6}$/.test(otp)} onClick={handleSign}>
+                      {signing ? "Đang xử lý..." : "Xác nhận OTP và ký"}
+                    </button>
+                    <button className="cdv-otp-resend" disabled={requestingOtp} onClick={handleRequestOtp}>
+                      Gửi mã mới
+                    </button>
+                  </>
+                )}
+                <p className="cdv-security"><FiShield size={12} /> OTP xác thực email; thời hạn 10 phút, tối đa 5 lần nhập sai.</p>
               </div>
             </div>
           )}
@@ -321,8 +414,14 @@ export default function ContractDetailView({
 
           {canCancel && (
             <button className="cdv-cancel-btn" onClick={() => setShowCancel(true)}>
-              {isFarmer && c.status === "pending" && !c.signedByFarmer ? "Từ chối hợp đồng này" : "Hủy hợp đồng này"}
+              {isFarmer ? "Từ chối hợp đồng này" : "Rút đề xuất hợp đồng"}
             </button>
+          )}
+          {c.status === "pending" && (c.signedByFarmer || c.signedByEnterprise) && (
+            <div className="cdv-badge cdv-badge-wait">
+              <p><FiShield size={16} /> Đang chờ bên còn lại ký</p>
+              <span>Hợp đồng không thể bị đơn phương hủy sau khi một bên đã ký.</span>
+            </div>
           )}
 
           <div className="cdv-support">
@@ -342,13 +441,15 @@ export default function ContractDetailView({
             </div>
             <div className="cdv-modal-body">
               <h4>1. Hiệu lực của chữ ký điện tử</h4>
-              <p>Chữ ký điện tử của bạn trên nền tảng {COMPANY.NAME} có giá trị pháp lý tương đương chữ ký tay theo Luật Giao dịch Điện tử Việt Nam. Hành động ký được ghi nhận kèm thời gian và tài khoản thực hiện.</p>
+              <p>Hệ thống xác thực việc ký qua OTP gửi đến email tài khoản và ghi nhận thời điểm, tài khoản cùng mã kiểm tra nội dung hợp đồng. Cơ chế này không phải chữ ký số được chứng thực bởi nhà cung cấp dịch vụ tin cậy; giá trị pháp lý phụ thuộc quy định áp dụng, thỏa thuận của các bên và cách thức xác thực cụ thể.</p>
               <h4>2. Trách nhiệm của các bên</h4>
               <p>Bằng việc ký, mỗi bên cam kết: (i) đã đọc và hiểu toàn bộ nội dung; (ii) có đủ thẩm quyền; (iii) thực hiện đầy đủ nghĩa vụ trong hợp đồng.</p>
-              <h4>3. Hệ thống Escrow</h4>
+              <h4>3. Hiệu lực, giao hàng và đền bù</h4>
+              <p>Hợp đồng có hiệu lực khi cả hai bên ký. Hai bên có trách nhiệm hoàn tất việc giao nhận và thanh toán theo thỏa thuận. Mức đền bù khi vi phạm là <strong>{c.breachCompensationRate}% giá trị phần nghĩa vụ bị vi phạm</strong>, áp dụng cho cả hai bên theo thỏa thuận và quy định pháp luật.</p>
+              <h4>4. Không đơn phương chấm dứt</h4>
+              <p>Sau khi một bên đã ký, không bên nào được đơn phương hủy hoặc chấm dứt hợp đồng. Việc chấm dứt chỉ theo thỏa thuận bằng văn bản của cả hai bên hoặc trường hợp pháp luật quy định.</p>
+              <h4>5. Hệ thống Escrow</h4>
               <p>Khi cả hai bên ký, hệ thống Escrow được kích hoạt. Doanh nghiệp cần nạp tiền ký quỹ trước khi giao hàng. Phí dịch vụ <strong>{c.commissionRate}%</strong> được khấu trừ tự động khi giải ngân.</p>
-              <h4>4. Hủy hợp đồng</h4>
-              <p>Sau khi ký, hợp đồng chỉ có thể hủy khi cả hai bên đồng ý hoặc có vi phạm nghiêm trọng được {COMPANY.NAME} xác nhận.</p>
             </div>
             <div className="cdv-modal-foot">
               <button className="cdv-btn-primary" onClick={() => { setAgreed(true); setShowTerms(false); }}>Tôi đã đọc và đồng ý</button>
@@ -363,13 +464,13 @@ export default function ContractDetailView({
         <div className="cdv-modal-overlay" onClick={() => !actionLoading && setShowCancel(false)}>
           <div className="cdv-modal" role="dialog" aria-modal="true" aria-label="Hủy hoặc từ chối hợp đồng" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="cdv-modal-head">
-              <h3>{isFarmer && c.status === "pending" && !c.signedByFarmer ? "Từ chối hợp đồng" : "Hủy hợp đồng"}</h3>
+              <h3>{isFarmer ? "Từ chối hợp đồng" : "Rút đề xuất hợp đồng"}</h3>
               <button onClick={() => setShowCancel(false)} disabled={actionLoading}>✕</button>
             </div>
             <div className="cdv-modal-body">
               <p style={{ marginBottom: 12 }}>Lý do cho hợp đồng <strong>{c.contractCode}</strong>:</p>
               <textarea className="cdv-textarea" placeholder="Nhập lý do..." value={cancelReason} onChange={e => setCancelReason(e.target.value)} rows={4} />
-              <p className="cdv-modal-note">Hành động này không thể hoàn tác.</p>
+              <p className="cdv-modal-note">Chỉ có thể thực hiện trước khi một trong hai bên ký hợp đồng.</p>
             </div>
             <div className="cdv-modal-foot">
               <button className="cdv-btn-danger" onClick={handleCancel} disabled={!cancelReason.trim() || actionLoading}>

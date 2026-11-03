@@ -26,7 +26,7 @@ const POSITIVE: Record<'farmer' | 'enterprise', Tmpl[]> = {
     { category: 'other', subject: 'Quản lý hợp đồng thu mua tiện lợi', message: 'Doanh nghiệp tôi quản lý hàng chục hợp đồng cùng lúc, nhờ PreOnic mà theo dõi tiến độ giao hàng và giải ngân rất gọn gàng. Báo cáo tổng quan trực quan, tiết kiệm nhiều thời gian.' },
     { category: 'feature', subject: 'Hệ thống đánh giá đối tác minh bạch', message: 'Việc đánh giá hai chiều giúp chúng tôi chọn được nông dân uy tín, giao hàng đúng cam kết. Điểm uy tín là tiêu chí rất giá trị khi ký hợp đồng mới.' },
     { category: 'ux', subject: 'Luồng tạo ký quỹ rõ ràng', message: 'Các mốc giải ngân theo phần trăm được trình bày dễ hiểu, đội thu mua mới vào cũng nắm được ngay. Trải nghiệm tổng thể rất chuyên nghiệp.' },
-    { category: 'other', subject: 'Nạp tiền qua SePay mượt mà', message: 'Tạo lệnh nạp, quét QR và hệ thống tự cộng ví sau vài giây. Không phải nhập tay, ít sai sót. Rất hài lòng với phần thanh toán.' },
+    { category: 'other', subject: 'Nạp tiền qua payOS mượt mà', message: 'Tạo lệnh nạp, quét QR và hệ thống tự cộng ví sau vài giây. Không phải nhập tay, ít sai sót. Rất hài lòng với phần thanh toán.' },
   ],
 };
 

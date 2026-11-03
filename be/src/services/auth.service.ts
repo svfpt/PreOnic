@@ -275,7 +275,7 @@ export class AuthService {
       );
     }
 
-    if (user.isLocked()) {
+    if (process.env.NODE_ENV === 'production' && user.isLocked()) {
       throw new AppError(
         'Tài khoản đã bị khóa tạm thời do đăng nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.',
         423
@@ -284,24 +284,28 @@ export class AuthService {
 
     const isPasswordCorrect = await user.comparePassword(password);
     if (!isPasswordCorrect) {
-      user.loginAttempts = (user.loginAttempts || 0) + 1;
-      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-        user.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
-      }
-      await user.save({ validateBeforeSave: false });
+      if (process.env.NODE_ENV === 'production') {
+        user.loginAttempts = (user.loginAttempts || 0) + 1;
+        if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+          user.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
+        }
+        await user.save({ validateBeforeSave: false });
 
-      const remainingAttempts = MAX_LOGIN_ATTEMPTS - user.loginAttempts;
-      if (remainingAttempts > 0) {
-        throw new AppError(
-          `Email/Số điện thoại hoặc mật khẩu không đúng. Còn ${remainingAttempts} lần thử.`,
-          401
-        );
-      } else {
+        const remainingAttempts = MAX_LOGIN_ATTEMPTS - user.loginAttempts;
+        if (remainingAttempts > 0) {
+          throw new AppError(
+            `Email/Số điện thoại hoặc mật khẩu không đúng. Còn ${remainingAttempts} lần thử.`,
+            401
+          );
+        }
+
         throw new AppError(
           'Tài khoản đã bị khóa tạm thời do đăng nhập sai nhiều lần.',
           423
         );
       }
+
+      throw new AppError('Email/Số điện thoại hoặc mật khẩu không đúng', 401);
     }
 
     const tokens = AuthService.generateTokens(user);

@@ -5,7 +5,7 @@ export interface IPaymentTransaction extends Document {
   type: 'topup' | 'escrow_deposit' | 'escrow_release' | 'refund' | 'commission' | 'withdrawal';
   amount: number;
   status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  paymentMethod: 'sepay' | 'internal' | 'demo' | 'bank_transfer';
+  paymentMethod: 'payos' | 'internal' | 'demo' | 'bank_transfer';
   gatewayRef?: string;
   orderCode?: number;
   description: string;
@@ -41,7 +41,7 @@ const PaymentTransactionSchema = new Schema<IPaymentTransaction>(
     },
     paymentMethod: {
       type: String,
-      enum: ['sepay', 'internal', 'demo', 'bank_transfer'],
+      enum: ['payos', 'internal', 'demo', 'bank_transfer'],
       required: true,
     },
     gatewayRef: { type: String },

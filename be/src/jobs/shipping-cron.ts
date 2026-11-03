@@ -1,4 +1,5 @@
 import Escrow from '../models/Escrow.model';
+import Notification from '../models/Notification.model';
 import { NotificationService } from '../services/notification.service';
 import { createLogger } from '../utils/logger';
 
@@ -41,7 +42,6 @@ export async function runShippingReminderJob(): Promise<void> {
       // Avoid spamming — only notify once per 24h after the 2-day gate
       // We use a simple heuristic: if the last notification was < 22h ago, skip
       // (We don't store notification state on escrow, so we check by querying notifications)
-      const Notification = (await import('../models/Notification.model')).default;
       const recentNotif = await Notification.findOne({
         userId: escrow.enterpriseId.toString(),
         type: 'escrow',

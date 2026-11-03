@@ -11,6 +11,7 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 export const authLimiter = rateLimit({
   windowMs: FIFTEEN_MINUTES_MS,
   max: 10,
+  skip: () => process.env.NODE_ENV !== 'production',
   standardHeaders: true,
   legacyHeaders: false,
   message: {

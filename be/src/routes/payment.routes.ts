@@ -12,6 +12,7 @@ import {
 import {
   createWithdrawal,
   getMyWithdrawals,
+  getWithdrawalBanks,
 } from '../controllers/withdrawal.controller';
 
 const router = Router();
@@ -31,6 +32,7 @@ router.post('/cancel', cancelTopup);
 
 // Rút tiền (user)
 router.get('/withdrawals', getMyWithdrawals);
+router.get('/withdrawals/banks', getWithdrawalBanks);
 router.post('/withdrawals', createWithdrawal);
 
 export default router;

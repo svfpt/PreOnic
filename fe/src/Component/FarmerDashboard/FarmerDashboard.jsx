@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -24,7 +24,8 @@ import "../common/DashboardVisualTheme.css";
 
 // Tệp này điều phối toàn bộ dashboard nông dân: điều hướng tab, dữ liệu tổng quan và các thao tác nghiệp vụ chính.
 export default function FarmerDashboard() {
-  const [activeTab, setActiveTab] = useState("muavu");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "muavu");
   const [headerSearch, setHeaderSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();

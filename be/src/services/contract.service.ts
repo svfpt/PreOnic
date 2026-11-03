@@ -19,6 +19,7 @@ export interface CreateContractBody {
   unit: 'tan' | 'ta' | 'kg' | 'thung';
   pricePerUnit: number;
   depositPercentage: number;
+  breachCompensationRate?: number;
   paymentTerms: '50_50' | '30_70' | '100_delivery' | '100_upfront';
   deliveryDate: string;
   notes?: string;
@@ -38,6 +39,36 @@ interface ContractFinancials {
 }
 
 export class ContractService {
+  private static getContractContentHash(contract: IContract): string {
+    const content = {
+      contractCode: contract.contractCode,
+      farmerId: contract.farmerId.toString(),
+      enterpriseId: contract.enterpriseId.toString(),
+      farmerName: contract.farmerName,
+      enterpriseName: contract.enterpriseName,
+      productId: contract.productId?.toString(),
+      productName: contract.productName,
+      quantity: contract.quantity,
+      unit: contract.unit,
+      pricePerUnit: contract.pricePerUnit,
+      totalValue: contract.totalValue,
+      commission: contract.commission,
+      commissionRate: contract.commissionRate,
+      depositAmount: contract.depositAmount,
+      depositPercentage: contract.depositPercentage,
+      breachCompensationRate: contract.breachCompensationRate,
+      paymentTerms: contract.paymentTerms,
+      deliveryDate: contract.deliveryDate.toISOString(),
+      notes: contract.notes,
+      farmLocation: contract.farmLocation,
+      insuranceFarmer: contract.insuranceFarmer,
+      insuranceEnterprise: contract.insuranceEnterprise,
+      riskSharingTerms: contract.riskSharingTerms,
+    };
+
+    return crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex');
+  }
+
   // Khối helper này gom toàn bộ quy tắc nghiệp vụ để các hàm public bên dưới chỉ còn điều phối luồng chính.
   private static async resolveParticipants(
     body: CreateContractBody,
@@ -290,6 +321,15 @@ export class ContractService {
     userId: string,
     role: ContractActorRole
   ): Promise<IContract> {
+    const breachCompensationRate = body.breachCompensationRate ?? 8;
+    if (
+      !Number.isFinite(breachCompensationRate) ||
+      breachCompensationRate <= 0 ||
+      breachCompensationRate > 100
+    ) {
+      throw new AppError('Tỷ lệ đền bù phải lớn hơn 0 và không vượt quá 100%', 400);
+    }
+
     const { farmerId, enterpriseId } = await this.resolveParticipants(
       body,
       userId,
@@ -309,6 +349,7 @@ export class ContractService {
       contractCode,
       farmerId,
       enterpriseId,
+      breachCompensationRate,
       productId: body.productId || undefined,
       totalValue,
       commission,
@@ -349,48 +390,74 @@ export class ContractService {
     return Contract.find(query).sort({ createdAt: -1 });
   }
 
-  /**
-   * Generate and send OTP for contract signing (enterprise only).
-   * The OTP hash is stored on the contract; raw OTP is emailed to the enterprise user.
-   */
+  /** Generate and email a one-time code to a contract participant. */
   static async requestSignOtp(contractId: string, userId: string): Promise<void> {
-    const contract = this.ensureContractExists(await Contract.findById(contractId));
+    const contract = this.ensureContractExists(
+      await Contract.findById(contractId).select(
+        '+signOtpHash +signOtpExpiry +signOtpSentAt +signOtpAttempts +signOtpContractHash'
+      )
+    );
 
-    if (contract.enterpriseId.toString() !== userId) {
-      throw new AppError('Bạn không phải là doanh nghiệp trong hợp đồng này', 403);
+    const isFarmer = contract.farmerId.toString() === userId;
+    const isEnterprise = contract.enterpriseId.toString() === userId;
+    if (!isFarmer && !isEnterprise) {
+      throw new AppError('Bạn không phải là bên tham gia hợp đồng này', 403);
     }
-    if (contract.signedByEnterprise) {
+    if (contract.status !== 'pending') {
+      throw new AppError('Chỉ có thể ký hợp đồng đang chờ ký', 400);
+    }
+    if ((isFarmer && contract.signedByFarmer) || (isEnterprise && contract.signedByEnterprise)) {
       throw new AppError('Hợp đồng này đã được bạn ký rồi', 400);
+    }
+    if (contract.signOtpSentAt && Date.now() - contract.signOtpSentAt.getTime() < 60_000) {
+      throw new AppError('Vui lòng đợi một phút trước khi yêu cầu mã OTP mới', 429);
     }
 
     const user = await User.findById(userId).select('email fullName');
     if (!user) throw new AppError('Không tìm thấy người dùng', 404);
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = String(crypto.randomInt(100000, 1_000_000));
     const hash = crypto.createHash('sha256').update(otp).digest('hex');
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    contract.signOtpHash = hash;
+    contract.signOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    contract.signOtpSentAt = new Date();
+    contract.signOtpAttempts = 0;
+    contract.signOtpContractHash = this.getContractContentHash(contract);
+    await contract.save();
 
-    // Use $set with select:false fields explicitly
-    await Contract.findByIdAndUpdate(contractId, {
-      signOtpHash: hash,
-      signOtpExpiry: expiry,
-    });
-
-    await sendSignOtpEmail(user.email, user.fullName, otp, contract.contractCode);
+    try {
+      await sendSignOtpEmail(user.email, user.fullName, otp, contract.contractCode);
+    } catch (error) {
+      contract.signOtpHash = undefined;
+      contract.signOtpExpiry = undefined;
+      contract.signOtpSentAt = undefined;
+      contract.signOtpAttempts = 0;
+      contract.signOtpContractHash = undefined;
+      await contract.save();
+      throw error;
+    }
   }
 
-  /**
-   * Sign a contract.
-   * Cả hai vai trò ký trực tiếp với xác nhận điều khoản (không còn dùng OTP).
-   * Việc xác thực đã được đảm bảo qua phiên đăng nhập (JWT) + checkbox đồng ý ở FE.
-   */
+  /** Verify a one-time email code and record the exact content each participant approved. */
   static async sign(
     contractId: string,
     userId: string,
     role: ContractActorRole,
-    _otp?: string
+    otp: string,
+    signingContext: { ipAddress?: string; userAgent?: string } = {}
   ): Promise<IContract> {
-    const contract = this.ensureContractExists(await Contract.findById(contractId));
+    const contract = this.ensureContractExists(
+      await Contract.findById(contractId).select(
+        '+signOtpHash +signOtpExpiry +signOtpAttempts +signOtpContractHash'
+      )
+    );
+
+    if (role !== 'farmer' && role !== 'enterprise') {
+      throw new AppError('Chỉ các bên tham gia mới có thể ký hợp đồng', 403);
+    }
+    if (contract.status !== 'pending') {
+      throw new AppError('Chỉ có thể ký hợp đồng đang chờ ký', 400);
+    }
 
     if (role === 'farmer') {
       if (contract.farmerId.toString() !== userId) {
@@ -399,7 +466,6 @@ export class ContractService {
       if (contract.signedByFarmer) {
         throw new AppError('Bạn đã ký hợp đồng này rồi', 400);
       }
-      contract.signedByFarmer = true;
     } else {
       if (contract.enterpriseId.toString() !== userId) {
         throw new AppError('Bạn không phải là doanh nghiệp trong hợp đồng này', 403);
@@ -407,6 +473,127 @@ export class ContractService {
       if (contract.signedByEnterprise) {
         throw new AppError('Bạn đã ký hợp đồng này rồi', 400);
       }
+    }
+
+    if (!/^\d{6}$/.test(otp || '')) {
+      throw new AppError('Vui lòng nhập mã OTP gồm 6 chữ số', 400);
+    }
+    if (!contract.signOtpHash || !contract.signOtpExpiry || !contract.signOtpContractHash) {
+      throw new AppError('Hãy yêu cầu mã OTP trước khi ký hợp đồng', 400);
+    }
+    if (contract.signOtpExpiry.getTime() <= Date.now()) {
+      contract.signOtpHash = undefined;
+      contract.signOtpExpiry = undefined;
+      contract.signOtpContractHash = undefined;
+      contract.signOtpAttempts = 0;
+      await contract.save();
+      throw new AppError('Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới', 400);
+    }
+    if (contract.signOtpAttempts >= 5) {
+      throw new AppError('Bạn đã nhập sai OTP quá số lần cho phép. Vui lòng yêu cầu mã mới', 429);
+    }
+
+    const submittedHash = crypto.createHash('sha256').update(otp).digest();
+    const storedHash = Buffer.from(contract.signOtpHash, 'hex');
+    if (storedHash.length !== submittedHash.length || !crypto.timingSafeEqual(storedHash, submittedHash)) {
+      const failedAttempt = await Contract.findOneAndUpdate(
+        {
+          _id: contract._id,
+          signOtpHash: contract.signOtpHash,
+          signOtpExpiry: { $gt: new Date() },
+          signOtpAttempts: { $lt: 5 },
+        },
+        { $inc: { signOtpAttempts: 1 } },
+        { new: true }
+      ).select('+signOtpAttempts');
+
+      if (!failedAttempt) {
+        throw new AppError('Mã OTP đã hết hạn hoặc cần được gửi lại', 429);
+      }
+      const attemptsExhausted = failedAttempt.signOtpAttempts >= 5;
+      if (attemptsExhausted) {
+        await Contract.updateOne(
+          { _id: contract._id, signOtpHash: contract.signOtpHash },
+          {
+            $unset: {
+              signOtpHash: 1,
+              signOtpExpiry: 1,
+              signOtpContractHash: 1,
+            },
+          }
+        );
+      }
+      throw new AppError(
+        attemptsExhausted
+          ? 'Bạn đã nhập sai OTP quá số lần cho phép. Vui lòng yêu cầu mã mới'
+          : 'Mã OTP không đúng',
+        attemptsExhausted ? 429 : 400
+      );
+    }
+
+    const contractHash = this.getContractContentHash(contract);
+    if (contract.signOtpContractHash !== contractHash) {
+      contract.signOtpHash = undefined;
+      contract.signOtpExpiry = undefined;
+      contract.signOtpContractHash = undefined;
+      contract.signOtpAttempts = 0;
+      await contract.save();
+      throw new AppError('Nội dung hợp đồng đã thay đổi. Vui lòng tải lại và yêu cầu OTP mới', 409);
+    }
+    const previousSignature = contract.signatures.find(signature => signature.role !== role);
+    if (previousSignature && previousSignature.contractHash !== contractHash) {
+      throw new AppError('Nội dung hợp đồng không khớp với chữ ký trước đó', 409);
+    }
+
+    const signer = await User.findById(userId).select('email fullName');
+    if (!signer) throw new AppError('Không tìm thấy người ký', 404);
+
+    const roleSignedField =
+      role === 'farmer' ? { signedByFarmer: false } : { signedByEnterprise: false };
+    const consumedOtp = await Contract.findOneAndUpdate(
+      {
+        _id: contract._id,
+        status: 'pending',
+        ...roleSignedField,
+        signOtpHash: contract.signOtpHash,
+        signOtpContractHash: contractHash,
+        signOtpExpiry: { $gt: new Date() },
+        signOtpAttempts: { $lt: 5 },
+        updatedAt: contract.updatedAt,
+      },
+      {
+        $unset: {
+          signOtpHash: 1,
+          signOtpExpiry: 1,
+          signOtpSentAt: 1,
+          signOtpContractHash: 1,
+        },
+        $set: { signOtpAttempts: 0 },
+      },
+      { new: true }
+    );
+    if (!consumedOtp) {
+      throw new AppError('Mã OTP đã được sử dụng hoặc hợp đồng vừa thay đổi. Vui lòng thử lại', 409);
+    }
+
+    contract.signatures.push({
+      role,
+      userId: signer._id,
+      signerName: signer.fullName,
+      signerEmail: signer.email,
+      signedAt: new Date(),
+      contractHash,
+      ipAddress: signingContext.ipAddress,
+      userAgent: signingContext.userAgent?.slice(0, 500),
+    });
+    contract.signOtpHash = undefined;
+    contract.signOtpExpiry = undefined;
+    contract.signOtpSentAt = undefined;
+    contract.signOtpAttempts = 0;
+    contract.signOtpContractHash = undefined;
+    if (role === 'farmer') {
+      contract.signedByFarmer = true;
+    } else {
       contract.signedByEnterprise = true;
     }
 
@@ -442,13 +629,31 @@ export class ContractService {
     }
 
     if (contract.signedByFarmer) {
-      throw new AppError('Bạn đã ký hợp đồng này. Dùng "Hủy hợp đồng" nếu muốn huỷ sau khi ký.', 400);
+      throw new AppError('Không thể từ chối sau khi một bên đã ký hợp đồng', 400);
+    }
+    if (contract.signedByEnterprise) {
+      throw new AppError('Không thể từ chối sau khi một bên đã ký hợp đồng', 400);
     }
 
-    contract.status = 'cancelled';
-    contract.cancelledAt = new Date();
-    contract.cancelReason = `[TỪ CHỐI] ${reason}`;
-    await contract.save();
+    const rejectedContract = await Contract.findOneAndUpdate(
+      {
+        _id: contract._id,
+        status: 'pending',
+        signedByFarmer: false,
+        signedByEnterprise: false,
+      },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelReason: `[TỪ CHỐI] ${reason}`,
+        },
+      },
+      { new: true }
+    );
+    if (!rejectedContract) {
+      throw new AppError('Hợp đồng đã thay đổi hoặc đã có bên ký, không thể từ chối', 409);
+    }
 
     // Notify enterprise
     try {
@@ -465,7 +670,7 @@ export class ContractService {
       // Không làm gián đoạn thao tác từ chối nếu chỉ lỗi bước thông báo.
     }
 
-    return contract;
+    return rejectedContract;
   }
 
   /**
@@ -485,15 +690,34 @@ export class ContractService {
       throw new AppError('Bạn không có quyền hủy hợp đồng này', 403);
     }
 
-    if (['completed', 'cancelled'].includes(contract.status)) {
-      throw new AppError('Không thể hủy hợp đồng ở trạng thái này', 400);
+    if (contract.status !== 'pending' || contract.signedByFarmer || contract.signedByEnterprise) {
+      throw new AppError(
+        'Không thể đơn phương hủy hợp đồng sau khi một bên đã ký. Hai bên cần thực hiện hợp đồng hoặc thỏa thuận chấm dứt theo quy định.',
+        400
+      );
+    }
+
+    const cancelledContract = await Contract.findOneAndUpdate(
+      {
+        _id: contract._id,
+        status: 'pending',
+        signedByFarmer: false,
+        signedByEnterprise: false,
+      },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancelReason: reason,
+        },
+      },
+      { new: true }
+    );
+    if (!cancelledContract) {
+      throw new AppError('Hợp đồng đã thay đổi hoặc đã có bên ký, không thể hủy', 409);
     }
 
     const cancelledByRole = contract.farmerId.toString() === userId ? 'farmer' : 'enterprise';
-    contract.status = 'cancelled';
-    contract.cancelledAt = new Date();
-    contract.cancelReason = reason;
-    await contract.save();
 
     // Notify the other party
     try {
@@ -514,6 +738,6 @@ export class ContractService {
       // Không làm hỏng thao tác hủy nếu chỉ lỗi bước thông báo.
     }
 
-    return contract;
+    return cancelledContract;
   }
 }

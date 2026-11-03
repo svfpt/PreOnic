@@ -5,12 +5,16 @@ import { formatMoney } from "../../../hooks/useApiData";
 import { useToast } from "../../../contexts/ToastContext";
 
 const STATUS_META = {
+  processing: { label: "Đang chuyển / đối soát", cls: "adm-badge-blue" },
+  failed: { label: "Chuyển thất bại", cls: "adm-badge-red" },
   pending:   { label: "Chờ duyệt", cls: "adm-badge-yellow" },
   completed: { label: "Đã chuyển", cls: "adm-badge-green" },
   rejected:  { label: "Từ chối",   cls: "adm-badge-red" },
 };
 
 const STATUS_OPTIONS = [
+  { val: "processing", label: "Đang chuyển / đối soát" },
+  { val: "failed", label: "Chuyển thất bại" },
   { val: "pending", label: "Chờ duyệt" },
   { val: "completed", label: "Đã chuyển" },
   { val: "rejected", label: "Từ chối" },
@@ -53,7 +57,7 @@ function ConfirmModal({ open, title, message, detail, confirmLabel, confirmCls, 
 function RejectModal({ open, request, onConfirm, onCancel }) {
   const [reason, setReason] = useState("");
   if (!open) return null;
-  const submit = () => { onConfirm(reason); setReason(""); };
+  const submit = () => { if (!reason.trim()) return; onConfirm(reason.trim()); setReason(""); };
   const cancel = () => { setReason(""); onCancel(); };
   return (
     <div className="adm-modal-overlay" onClick={cancel}>
@@ -73,7 +77,7 @@ function RejectModal({ open, request, onConfirm, onCancel }) {
             </div>
           )}
           <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
-            Lý do từ chối <span style={{ fontWeight: 400, color: "#94a3b8" }}>(không bắt buộc)</span>
+            Lý do từ chối <span style={{ fontWeight: 400, color: "#94a3b8" }}>(bắt buộc)</span>
           </label>
           <textarea
             autoFocus
@@ -90,6 +94,7 @@ function RejectModal({ open, request, onConfirm, onCancel }) {
           <button
             className="adm-btn"
             style={{ background: "#dc2626", color: "#fff", border: "none" }}
+            disabled={!reason.trim()}
             onClick={submit}
           >
             Xác nhận từ chối
@@ -112,8 +117,8 @@ export default function QuanLyRutTien() {
   const [confirmModal, setConfirmModal] = useState({ open: false, request: null });
   const [rejectModal, setRejectModal]   = useState({ open: false, request: null });
 
-  const load = useCallback(async (page = 1) => {
-    setLoading(true);
+  const load = useCallback(async (page = 1, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = { page, limit: 20 };
       if (statusFilter) params.status = statusFilter;
@@ -122,13 +127,17 @@ export default function QuanLyRutTien() {
       setRequests(data.requests || []);
       setPagination({ page: data.page || 1, total: data.total || 0, totalPages: data.totalPages || 1 });
     } catch {
-      toast.error("Không thể tải danh sách yêu cầu rút tiền");
+      if (!silent) toast.error("Không thể tải danh sách yêu cầu rút tiền");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [statusFilter, toast]);
 
   useEffect(() => { load(1); }, [load]);
+  useEffect(() => {
+    const timer = setInterval(() => load(pagination.page, true), 10000);
+    return () => clearInterval(timer);
+  }, [load, pagination.page]);
 
   const fmtDate = (d) => d ? new Date(d).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "—";
 
@@ -142,8 +151,8 @@ export default function QuanLyRutTien() {
     setConfirmModal({ open: false, request: null });
     setActionId(r._id);
     try {
-      await adminService.completeWithdrawal(r._id, "");
-      toast.success("Đã hoàn tất rút tiền và trừ số dư người dùng.");
+      const response = await adminService.approveWithdrawal(r._id, "");
+      toast.success(response.message || "Đã phê duyệt yêu cầu chuyển tiền.");
       await load(pagination.page);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Thao tác thất bại");
@@ -173,14 +182,14 @@ export default function QuanLyRutTien() {
       {/* Confirm complete modal */}
       <ConfirmModal
         open={confirmModal.open}
-        title="Xác nhận đã chuyển khoản"
+        title="Phê duyệt chuyển tiền"
         message={
           confirmModal.request
-            ? `Xác nhận ĐÃ CHUYỂN KHOẢN ${formatMoney(confirmModal.request.amount)} cho ${confirmModal.request.bankAccountHolder}?`
+            ? `Phê duyệt để hệ thống chuyển ${formatMoney(confirmModal.request.amount)} cho ${confirmModal.request.bankAccountHolder}?`
             : ""
         }
-        detail="Hệ thống sẽ trừ số tiền này khỏi số dư của người dùng."
-        confirmLabel="Đã chuyển khoản"
+        detail={confirmModal.request ? `${confirmModal.request.bankName} · ${confirmModal.request.bankAccountNumber}. Hệ thống sẽ gửi lệnh chuyển tiền thật qua payOS.` : ""}
+        confirmLabel="Phê duyệt chuyển tiền"
         onConfirm={doComplete}
         onCancel={() => setConfirmModal({ open: false, request: null })}
       />
@@ -196,7 +205,7 @@ export default function QuanLyRutTien() {
       <div className="adm-page-header">
         <div>
           <h1 className="adm-page-title">Quản lý Rút tiền</h1>
-          <p className="adm-page-subtitle">Xét duyệt yêu cầu rút tiền — xác nhận đã chuyển khoản để trừ số dư người dùng</p>
+          <p className="adm-page-subtitle">Phê duyệt yêu cầu — hệ thống chuyển tiền qua payOS và tự đối soát kết quả</p>
         </div>
       </div>
 
@@ -248,7 +257,7 @@ export default function QuanLyRutTien() {
                           <div>{r.bankAccountNumber}</div>
                           <div style={{ color: "#94a3b8" }}>{r.bankAccountHolder}</div>
                         </td>
-                        <td style={{ color: "#64748b", fontSize: 12, maxWidth: 160 }}>{r.note || "—"}</td>
+                        <td style={{ color: "#64748b", fontSize: 12, maxWidth: 160 }}>{r.lastError || r.adminNote || r.note || "—"}</td>
                         <td><span className={`adm-badge ${sm.cls}`}>{sm.label}</span></td>
                         <td style={{ color: "#64748b", fontSize: 12 }}>{fmtDate(r.createdAt)}</td>
                         <td>
@@ -259,7 +268,7 @@ export default function QuanLyRutTien() {
                                 onClick={() => handleComplete(r)}
                                 style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: busy ? "#d1d5db" : "#16a34a", color: "#fff", fontWeight: 700, fontSize: 12, cursor: busy ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
                               >
-                                {busy ? "..." : "Đã chuyển"}
+                                {busy ? "..." : "Phê duyệt"}
                               </button>
                               <button
                                 disabled={busy}
@@ -269,6 +278,8 @@ export default function QuanLyRutTien() {
                                 Từ chối
                               </button>
                             </div>
+                          ) : r.status === "processing" ? (
+                            <button className="adm-btn adm-btn-ghost" disabled={busy} onClick={async () => { setActionId(r._id); try { await adminService.syncWithdrawal(r._id); await load(pagination.page); } catch { toast.error("Không thể đối soát yêu cầu"); } finally { setActionId(null); } }}>Kiểm tra trạng thái</button>
                           ) : (
                             <span style={{ fontSize: 12, color: "#94a3b8" }}>
                               {r.processedBy?.fullName ? `bởi ${r.processedBy.fullName}` : "Đã xử lý"}

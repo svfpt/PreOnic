@@ -6,6 +6,7 @@ import User from '../models/User.model';
 import PaymentTransaction from '../models/PaymentTransaction.model';
 import { AppError } from '../middlewares/error.middleware';
 import { NotificationService } from './notification.service';
+import { WithdrawalService } from './withdrawal.service';
 import Product from '../models/Product.model';
 import { getHarvestEligibility } from '../utils/harvest.util';
 import { buildMilestones } from '../utils/milestone.util';
@@ -134,6 +135,7 @@ export class EscrowService {
     }
 
     // Check enterprise balance
+    await WithdrawalService.reserveLegacyRequests(userId);
     const enterprise = await User.findById(userId);
     if (!enterprise) {
       throw new AppError('Người dùng không tồn tại', 404);

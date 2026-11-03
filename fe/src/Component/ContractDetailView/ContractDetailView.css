@@ -122,7 +122,9 @@
 .cdv-sig-stat { margin: 0; font-size: 13px; font-weight: 700; }
 .cdv-sig.signed .cdv-sig-stat { color: #16a34a; }
 .cdv-sig.pending .cdv-sig-stat { color: #9ca3af; }
+.cdv-sig-evidence { margin: 5px 0 0; font-size: 10px; line-height: 1.4; color: #4b5563; overflow-wrap: anywhere; }
 .cdv-sig-role { position: absolute; top: 8px; left: 12px; font-size: 10px; font-weight: 700; color: #9ca3af; letter-spacing: .5px; }
+.cdv-signature-note { margin: 10px 0 0; color: #6b7280; font-size: 10px; line-height: 1.5; }
 
 .cdv-cancel-reason { margin-top: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 16px; font-size: 13.5px; color: #991b1b; }
 
@@ -147,6 +149,10 @@
 .cdv-agree span { font-size: 13px; color: #4b5563; line-height: 1.55; }
 .cdv-link { background: none; border: none; color: #16a34a; font-weight: 600; cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
 .cdv-sign-foot { padding: 0 16px 16px; }
+.cdv-otp-label { display: block; margin: 0 0 6px; font-size: 12px; color: #4b5563; }
+.cdv-otp-input { width: 100%; margin-bottom: 10px; padding: 11px; border: 1px solid #d1d5db; border-radius: 9px; font-size: 20px; letter-spacing: 8px; text-align: center; }
+.cdv-otp-resend { display: block; width: 100%; margin-top: 8px; border: 0; background: transparent; color: #15803d; font-weight: 600; cursor: pointer; }
+.cdv-otp-resend:disabled { color: #9ca3af; cursor: wait; }
 .cdv-security { display: flex; align-items: center; gap: 5px; justify-content: center; font-size: 11px; color: #9ca3af; margin: 10px 0 0; }
 
 .cdv-badge { border-radius: 14px; padding: 16px; }
@@ -199,3 +205,20 @@
 .cdv-modal-note { font-size: 12px !important; color: #9ca3af !important; margin-top: 8px !important; }
 .cdv-textarea { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #e5e7eb; font-size: 14px; resize: vertical; font-family: inherit; box-sizing: border-box; }
 .cdv-modal-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 22px; border-top: 1px solid #f3f4f6; background: #fafafa; }
+
+@media print {
+  @page { size: A4; margin: 18mm; }
+  body { background: #fff !important; }
+  .cdv-topnav, .cdv-preview-head, .cdv-sidebar { display: none !important; }
+  .cdv-root, .cdv-grid, .cdv-preview {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+  .cdv-doc { padding: 0 !important; }
+  .cdv-doc-section, .cdv-signatures { break-inside: avoid; }
+}
