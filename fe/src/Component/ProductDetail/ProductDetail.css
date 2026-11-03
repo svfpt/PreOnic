@@ -14,6 +14,16 @@
 /* LEFT: IMAGE */
 .pd-image-wrap { position: relative; border-radius: 16px; overflow: hidden; }
 .pd-image-wrap img { width: 100%; height: 420px; object-fit: cover; }
+.pd-gallery:focus-visible { outline: 2px solid #16a34a; outline-offset: 4px; border-radius: 16px; }
+.pd-gallery-main { display: block; touch-action: pan-y; }
+.pd-gallery-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; border: none; border-radius: 50%; background: rgba(255,255,255,.94); color: #14532d; display: grid; place-items: center; font-size: 24px; cursor: pointer; box-shadow: 0 2px 10px #0002; }
+.pd-gallery-prev { left: 12px; }
+.pd-gallery-next { right: 12px; }
+.pd-gallery-counter { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); border-radius: 20px; padding: 5px 12px; background: #0009; color: white; font-size: 13px; }
+.pd-gallery-thumbnails { display: flex; gap: 10px; overflow-x: auto; padding: 12px 2px; }
+.pd-gallery-thumb { flex: 0 0 72px; height: 64px; border: 2px solid transparent; border-radius: 9px; overflow: hidden; padding: 0; background: #f3f4f6; cursor: pointer; }
+.pd-gallery-thumb.is-active { border-color: #16a34a; }
+.pd-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pd-badge { position: absolute; top: 16px; left: 16px; background: #13ec37; color: #111; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 .pd-region-tag { position: absolute; top: 16px; right: 16px; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 

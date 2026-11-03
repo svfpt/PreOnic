@@ -1,16 +1,18 @@
 
 import dotenv from "dotenv";
-import cloudinary from "./cloudinary";
+import { getCloudinary } from "./cloudinary";
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function testCloudinary() {
   try {
-    const result = await cloudinary.api.ping();
+    const result = await getCloudinary().api.ping();
     console.log("Cloudinary kết nối thành công!");
     console.log(result);
   } catch (error) {
-    console.error("Cloudinary kết nối thất bại:", error);
+    console.error("Cloudinary kết nối thất bại:", error instanceof Error ? error.name : 'CloudinaryError');
+    process.exitCode = 1;
   }
 }
 
