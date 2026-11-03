@@ -1,3 +1,4 @@
+import { EmailOtpService, OTP_INFO } from './email-otp.service';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 import User, { IUser } from '../models/User.model';
@@ -13,15 +14,12 @@ import {
   GoogleLoginBody,
 } from '../types';
 import {
-  MAX_LOGIN_ATTEMPTS,
-  LOCK_DURATION_MS,
   PASSWORD_MIN_LENGTH,
 } from '../constants';
 import { isTruthy, parseFullName } from '../utils/validation.util';
 import {
   getSmtpConfig,
   sendEmail,
-  sendVerificationEmail,
   buildPasswordResetEmailHtml,
 } from './email.service';
 import { createLogger } from '../utils/logger';
@@ -65,6 +63,7 @@ export class AuthService {
 
   private static hideSensitiveFields(user: IUser): IUser {
     Reflect.set(user, 'password', undefined);
+    Reflect.set(user, 'refreshToken', undefined);
     return user;
   }
 
@@ -144,6 +143,9 @@ export class AuthService {
    * Generate access & refresh tokens for a user
    */
   static generateTokens(user: IUser): AuthTokens {
+    if (!user.isActive || user.isHidden) throw new AppError('Tài khoản không còn khả dụng', 403);
+    if (!user.isVerified) throw new AppError('Vui lòng xác thực email bằng OTP trước khi đăng nhập.', 403,
+      'EMAIL_NOT_VERIFIED', { email: user.email });
     const payload: UserTokenPayload = {
       id: String(user._id),
       email: user.email,
@@ -175,7 +177,7 @@ export class AuthService {
     body: RegisterBody
   ): Promise<
     | { user: IUser; tokens: AuthTokens }
-    | { requiresVerification: true; email: string; verificationUrl?: string }
+    | { requiresVerification: true; email: string; expiresInSeconds: number; resendAfterSeconds: number }
   > {
     const { fullName, email, phone, password, confirmPassword, role, agreeTerms, province, district, ward } = body;
 
@@ -189,8 +191,8 @@ export class AuthService {
     if (existingUser) {
       if (!existingUser.isVerified) {
         throw new AppError(
-          'Email này đã đăng ký nhưng chưa xác minh. Vui lòng kiểm tra hộp thư để kích hoạt tài khoản.',
-          400
+          'Email này chưa xác thực. Vui lòng yêu cầu OTP mới.',
+          403, 'EMAIL_NOT_VERIFIED', { email: existingUser.email }
         );
       }
       throw new AppError('Email đã được sử dụng', 400);
@@ -205,6 +207,7 @@ export class AuthService {
 
     const { firstName, lastName } = parseFullName(fullName);
 
+    EmailOtpService.ensureDeliveryReady();
     const user = await User.create({
       email: email.toLowerCase(),
       password,
@@ -219,19 +222,8 @@ export class AuthService {
       ...(ward && { ward }),
     });
 
-    // Both farmers and enterprises must verify their email before logging in.
-    const verificationToken = user.createEmailVerificationToken();
-    await user.save({ validateBeforeSave: false });
-
-    let verificationUrl: string | undefined;
-    try {
-      verificationUrl = await sendVerificationEmail(user.email, user.fullName, verificationToken);
-    } catch (err) {
-      log.error('Failed to send verification email after registration', err);
-      verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
-    }
-
-    return { requiresVerification: true as const, email: user.email, verificationUrl };
+    const info = await EmailOtpService.send(user.email);
+    return { requiresVerification: true as const, email: user.email, ...info };
   }
 
   /**
@@ -268,43 +260,8 @@ export class AuthService {
       throw new AppError('Tài khoản này đăng nhập bằng Google. Vui lòng dùng nút "Đăng nhập bằng Google".', 400);
     }
 
-    if (!user.isVerified) {
-      throw new AppError(
-        'Email chưa được xác minh. Vui lòng kiểm tra hộp thư và nhấn link kích hoạt trước khi đăng nhập.',
-        403
-      );
-    }
-
-    if (process.env.NODE_ENV === 'production' && user.isLocked()) {
-      throw new AppError(
-        'Tài khoản đã bị khóa tạm thời do đăng nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.',
-        423
-      );
-    }
-
     const isPasswordCorrect = await user.comparePassword(password);
     if (!isPasswordCorrect) {
-      if (process.env.NODE_ENV === 'production') {
-        user.loginAttempts = (user.loginAttempts || 0) + 1;
-        if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-          user.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
-        }
-        await user.save({ validateBeforeSave: false });
-
-        const remainingAttempts = MAX_LOGIN_ATTEMPTS - user.loginAttempts;
-        if (remainingAttempts > 0) {
-          throw new AppError(
-            `Email/Số điện thoại hoặc mật khẩu không đúng. Còn ${remainingAttempts} lần thử.`,
-            401
-          );
-        }
-
-        throw new AppError(
-          'Tài khoản đã bị khóa tạm thời do đăng nhập sai nhiều lần.',
-          423
-        );
-      }
-
       throw new AppError('Email/Số điện thoại hoặc mật khẩu không đúng', 401);
     }
 
@@ -526,26 +483,21 @@ export class AuthService {
   }
 
   /**
-   * VERIFY EMAIL - Confirm email address with token from link
+   * VERIFY EMAIL - Confirm email address with a one-time code
    */
-  static async verifyEmail(token: string): Promise<IUser> {
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-    const user = await User.findOne({
-      emailVerificationToken: hashedToken,
-      emailVerificationExpires: { $gt: new Date() },
-    }).select('+emailVerificationToken +emailVerificationExpires');
-
-    if (!user) {
-      throw new AppError('Link xác minh không hợp lệ hoặc đã hết hạn.', 400);
-    }
-
-    user.isVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
+  static async verifyEmail(email: unknown, otp: unknown): Promise<{ user: IUser; tokens: AuthTokens }> {
+    // Validate signing configuration before consuming the one-time code.
+    AuthService.getJwtSecret();
+    AuthService.getRefreshJwtSecret();
+    const user = await EmailOtpService.verify(email, otp);
+    const tokens = AuthService.generateTokens(user);
+    user.refreshToken = tokens.refreshToken;
+    user.lastLogin = new Date();
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
     await user.save({ validateBeforeSave: false });
-
-    return user;
+    AuthService.hideSensitiveFields(user);
+    return { user, tokens };
   }
 
   /**
@@ -571,7 +523,7 @@ export class AuthService {
     if (credential) {
       const { OAuth2Client } = require('google-auth-library');
       const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-      type GoogleTicket = { getPayload: () => { email?: string; name?: string; picture?: string; sub?: string } };
+      type GoogleTicket = { getPayload: () => { email?: string; email_verified?: boolean; name?: string; picture?: string; sub?: string } };
       let ticket: GoogleTicket | null = null;
       try {
         ticket = await client.verifyIdToken({
@@ -585,7 +537,7 @@ export class AuthService {
         throw new AppError('Google ID token không hợp lệ', 401);
       }
       const payload = ticket.getPayload();
-      if (!payload?.email || !payload?.sub) {
+      if (!payload?.email || !payload?.sub || payload.email_verified !== true) {
         throw new AppError('Google trả thiếu thông tin cần thiết', 401);
       }
       googleEmail = payload.email;
@@ -598,6 +550,7 @@ export class AuthService {
         const { data } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+        if (data.email_verified !== true || !data.sub) throw new Error('Unverified Google email');
         googleEmail = data.email;
         googleName = data.name || data.email;
         googlePicture = data.picture;
@@ -632,6 +585,9 @@ export class AuthService {
         isVerified: true,
       });
     } else {
+      if (!user.isActive || user.isHidden) throw new AppError('Tài khoản không còn khả dụng', 403);
+      if (!user.isVerified) throw new AppError('Vui lòng xác thực email bằng OTP trước khi đăng nhập.', 403,
+        'EMAIL_NOT_VERIFIED', { email: user.email });
       // User đã tồn tại — chặn nếu là tài khoản doanh nghiệp đã đăng ký bằng đường thường,
       // tránh trường hợp doanh nghiệp lách qua Google để bỏ bước xác minh.
       if (user.role === 'enterprise') {
@@ -660,26 +616,9 @@ export class AuthService {
   }
 
   /**
-   * RESEND VERIFICATION EMAIL - Generate new token and send email
+   * RESEND VERIFICATION EMAIL - Public OTP recovery with persisted delivery limits
    */
-  static async resendVerificationEmail(
-    userId: string
-  ): Promise<{ message: string }> {
-    const user = await User.findById(userId).select('+emailVerificationToken +emailVerificationExpires');
-    if (!user) {
-      throw new AppError('Không tìm thấy người dùng', 404);
-    }
-
-    if (user.isVerified) {
-      throw new AppError('Tài khoản đã được xác minh email rồi.', 400);
-    }
-
-    const verificationToken = user.createEmailVerificationToken();
-    await user.save({ validateBeforeSave: false });
-
-    await sendVerificationEmail(user.email, user.fullName, verificationToken);
-
-    return { message: 'Email xác minh đã được gửi lại. Vui lòng kiểm tra hộp thư.' };
+  static async resendVerificationEmail(email: unknown): Promise<typeof OTP_INFO> {
+    return EmailOtpService.send(email);
   }
-
 }

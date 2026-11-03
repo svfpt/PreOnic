@@ -39,7 +39,7 @@ export const protect = async (
     // Luồng bảo vệ luôn kiểm tra lại người dùng trong DB để chặn tài khoản đã bị vô hiệu hóa.
     const decoded = jwt.verify(token, getJwtSecret()) as JwtUserPayload;
     const activeUser = await User.findById(decoded.id).select(
-      'email role fullName isActive isHidden'
+      'email role fullName isActive isHidden isVerified'
     );
 
     if (!activeUser || !activeUser.isActive || activeUser.isHidden) {
@@ -47,6 +47,8 @@ export const protect = async (
         new AppError('Tài khoản không còn khả dụng hoặc đã bị vô hiệu hóa', 401)
       );
     }
+
+    if (!activeUser.isVerified) return next(new AppError('Vui lòng xác thực email bằng OTP.', 403, 'EMAIL_NOT_VERIFIED', { email: activeUser.email }));
 
     req.user = {
       id: String(activeUser._id),

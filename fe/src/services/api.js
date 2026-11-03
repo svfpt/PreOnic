@@ -72,6 +72,7 @@ api.interceptors.response.use(
     const isUnauthorized = error.response?.status === UNAUTHORIZED_STATUS;
     const hasNotRetried = !originalRequest?._retry;
     const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh-token');
+    const isPublicAuthRequest = /^\/auth\/(login|register|google|forgot-password|reset-password|verify-email|resend-verification)(\/|$)/.test(originalRequest?.url || '');
 
     // BE trả 403 + code PROFILE_INCOMPLETE → đẩy user về trang hồ sơ để bổ sung.
     if (
@@ -82,7 +83,7 @@ api.interceptors.response.use(
       window.location.href = `${PROFILE_REDIRECT_PATH}?incomplete=1`;
     }
 
-    if (isUnauthorized && hasNotRetried && !isRefreshRequest) {
+    if (isUnauthorized && hasNotRetried && !isRefreshRequest && !isPublicAuthRequest) {
       originalRequest._retry = true;
 
       try {

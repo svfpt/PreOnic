@@ -116,6 +116,10 @@ const Auth = () => {
         }, 800);
       }
     } catch (err) {
+      if (err.code === 'EMAIL_NOT_VERIFIED') {
+        navigate('/verify-email?email=' + encodeURIComponent(err.data?.email || ''));
+        return;
+      }
       toast.error(
         err?.message || "Đăng nhập Google thất bại. Vui lòng thử lại."
       );
@@ -168,6 +172,10 @@ const Auth = () => {
         }, 800);
       }
     } catch (err) {
+      if (err.code === 'EMAIL_NOT_VERIFIED') {
+        navigate('/verify-email?email=' + encodeURIComponent(err.data?.email || ''));
+        return;
+      }
       const errorMessage =
         err.message || "Đăng nhập thất bại. Vui lòng thử lại.";
       setError(errorMessage);

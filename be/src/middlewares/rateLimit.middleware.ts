@@ -43,3 +43,13 @@ export const passwordResetLimiter = rateLimit({
     message: 'Quá nhiều yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau 1 giờ.',
   },
 });
+
+// Per-account limits persist in MongoDB; IP limits apply in all environments.
+export const otpVerifyLimiter = rateLimit({
+  windowMs: FIFTEEN_MINUTES_MS, max: 30, standardHeaders: true, legacyHeaders: false,
+  message: { success: false, message: 'Quá nhiều lần xác thực OTP. Vui lòng thử lại sau 15 phút.' },
+});
+export const otpSendLimiter = rateLimit({
+  windowMs: ONE_HOUR_MS, max: 10, standardHeaders: true, legacyHeaders: false,
+  message: { success: false, message: 'Quá nhiều yêu cầu gửi OTP. Vui lòng thử lại sau 1 giờ.' },
+});

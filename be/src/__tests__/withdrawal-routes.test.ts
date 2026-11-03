@@ -42,8 +42,8 @@ describe('Withdrawal route authorization and workflow', () => {
     process.env.PAYOS_PAYOUT_API_KEY = 'test-api';
     process.env.PAYOS_PAYOUT_CHECKSUM_KEY = 'test-checksum';
     const [farmer, admin] = await User.create([
-      { email: 'farmer-route@test.local', password: 'password123', role: 'farmer', firstName: 'Test', lastName: 'Farmer', fullName: 'Test Farmer', virtualBalance: 50000 },
-      { email: 'admin-route@test.local', password: 'password123', role: 'admin', firstName: 'Test', lastName: 'Admin', fullName: 'Test Admin' },
+      { email: 'farmer-route@test.local', password: 'password123', isVerified: true, role: 'farmer', firstName: 'Test', lastName: 'Farmer', fullName: 'Test Farmer', virtualBalance: 50000 },
+      { email: 'admin-route@test.local', password: 'password123', isVerified: true, role: 'admin', firstName: 'Test', lastName: 'Admin', fullName: 'Test Admin' },
     ]);
     farmerToken = jwt.sign({ id: String(farmer._id) }, process.env.JWT_SECRET);
     adminToken = jwt.sign({ id: String(admin._id) }, process.env.JWT_SECRET);
