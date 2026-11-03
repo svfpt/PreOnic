@@ -7,16 +7,18 @@ import {
 import { useAuth } from "../../../contexts/AuthContext";
 import { useToast } from "../../../contexts/ToastContext";
 import { FILE_SIZE_LIMIT } from "../../../constants";
+import authService from "../../../services/auth.service";
 import productService from "../../../services/product.service";
 
 export default function DangBanContent() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({ cropType: "", variety: "", area: "", plantDate: "", harvestDate: "", estimatedYield: "", desiredPrice: "", unit: "kg", minBuyoutPercent: "" });
   const [certFile, setCertFile] = useState(null);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [checkingApproval, setCheckingApproval] = useState(false);
   const toast = useToast();
   const certInputRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -55,6 +57,10 @@ export default function DangBanContent() {
   };
 
   const handleSubmit = async () => {
+    if (user?.farmerApprovalStatus !== "approved") {
+      toast.warning("Tài khoản cần được quản trị viên duyệt trước khi đăng bán.");
+      return;
+    }
     setSubmitting(true);
     try {
       // Upload first photo to server; get back a real URL (not base64)
@@ -129,6 +135,39 @@ export default function DangBanContent() {
   };
 
   const productDisplayName = [formData.cropType, formData.variety].filter(Boolean).join(" ") || "Tên sản phẩm";
+
+  const refreshApprovalStatus = async () => {
+    setCheckingApproval(true);
+    try {
+      const response = await authService.getMe();
+      if (response?.data?.user) updateUser(response.data.user);
+    } catch (err) {
+      toast.error(err?.message || "Không thể kiểm tra trạng thái duyệt.");
+    } finally {
+      setCheckingApproval(false);
+    }
+  };
+
+  if (user?.farmerApprovalStatus !== "approved") {
+    return (
+      <>
+        <div className="fd-pg-header">
+          <div>
+            <div className="fd-breadcrumb"><span>Trang chủ</span><span className="fd-bc-arrow">›</span><span>Đăng bán nông sản</span></div>
+            <h2>Đăng bán nông sản</h2>
+          </div>
+        </div>
+        <section className="farmer-approval-wait" role="status">
+          <div className="farmer-approval-wait-icon"><FiAlertTriangle size={26} /></div>
+          <h3>Tài khoản đang chờ admin duyệt</h3>
+          <p>Người nông dân chỉ có thể đăng bán sản phẩm sau khi quản trị viên duyệt tài khoản.</p>
+          <button type="button" className="farmer-approval-refresh" onClick={refreshApprovalStatus} disabled={checkingApproval}>
+            {checkingApproval ? "Đang kiểm tra..." : "Kiểm tra trạng thái duyệt"}
+          </button>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

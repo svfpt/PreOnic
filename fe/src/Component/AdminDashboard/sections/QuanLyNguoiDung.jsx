@@ -16,6 +16,7 @@ export default function QuanLyNguoiDung() {
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [toggling, setToggling] = useState(null);
+  const [approving, setApproving] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null); // user object to confirm delete
   const [deleting, setDeleting] = useState(false);
 
@@ -62,6 +63,24 @@ export default function QuanLyNguoiDung() {
       toast.error("Không thể thay đổi trạng thái tài khoản");
     } finally {
       setToggling(null);
+    }
+  };
+
+  const handleApproveFarmer = async (farmer) => {
+    setApproving(farmer._id);
+    try {
+      await adminService.approveFarmer(farmer._id);
+      toast.success("Đã duyệt tài khoản nông dân đăng bán sản phẩm");
+      setUsers(prev => prev.map(u => u._id === farmer._id
+        ? { ...u, farmerApprovalStatus: "approved" }
+        : u));
+      setSelectedUser(prev => prev?._id === farmer._id
+        ? { ...prev, farmerApprovalStatus: "approved" }
+        : prev);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Không thể duyệt tài khoản nông dân");
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -132,6 +151,7 @@ export default function QuanLyNguoiDung() {
                     {/* <th>Email</th> */}
                     <th>Vai trò</th>
                     <th>Trạng thái</th>
+                    <th>Duyệt đăng bán</th>
                     {/* Cột Số dư ví ẩn: admin không được xem số dư người dùng. */}
                     {/* <th>Số dư ví</th> */}
                     <th>Ngày tham gia</th>
@@ -161,6 +181,13 @@ export default function QuanLyNguoiDung() {
                           {u.isActive ? "Hoạt động" : "Vô hiệu hóa"}
                         </span>
                       </td>
+                      <td>
+                        {u.role === "farmer" ? (
+                          <span className={`adm-badge ${u.farmerApprovalStatus === "approved" ? "adm-badge-green" : "adm-badge-yellow"}`}>
+                            {u.farmerApprovalStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"}
+                          </span>
+                        ) : "—"}
+                      </td>
                       {/* Số dư ví ẩn: admin không được xem số dư người dùng. */}
                       {/* <td style={{ fontWeight: 600, color: "#1d4ed8" }}>{formatMoney(u.virtualBalance || 0)}</td> */}
                       <td style={{ color: "#64748b" }}>{fmtDate(u.createdAt)}</td>
@@ -181,6 +208,15 @@ export default function QuanLyNguoiDung() {
                           >
                             Xóa
                           </button>
+                          {u.role === "farmer" && u.farmerApprovalStatus !== "approved" && (
+                            <button
+                              className="adm-btn adm-btn-success"
+                              onClick={() => handleApproveFarmer(u)}
+                              disabled={approving === u._id}
+                            >
+                              {approving === u._id ? "Đang duyệt..." : "Duyệt đăng bán"}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -227,6 +263,16 @@ export default function QuanLyNguoiDung() {
                   <div className="adm-detail-row"><span className="adm-detail-label">Vai trò</span><span className="adm-detail-val">{ROLE_LABELS[selectedUser.role] || selectedUser.role}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Trạng thái</span><span className="adm-detail-val"><span className={`adm-badge ${selectedUser.isActive ? "adm-badge-green" : "adm-badge-red"}`}>{selectedUser.isActive ? "Hoạt động" : "Vô hiệu hóa"}</span></span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Xác minh email</span><span className="adm-detail-val">{selectedUser.isVerified ? "Đã xác minh" : "Chưa xác minh"}</span></div>
+                  {selectedUser.role === "farmer" && (
+                    <div className="adm-detail-row">
+                      <span className="adm-detail-label">Duyệt đăng bán</span>
+                      <span className="adm-detail-val">
+                        <span className={`adm-badge ${selectedUser.farmerApprovalStatus === "approved" ? "adm-badge-green" : "adm-badge-yellow"}`}>
+                          {selectedUser.farmerApprovalStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"}
+                        </span>
+                      </span>
+                    </div>
+                  )}
                   <div className="adm-detail-row"><span className="adm-detail-label">Số điện thoại</span><span className="adm-detail-val">{selectedUser.phone || "—"}</span></div>
                   <div className="adm-detail-row"><span className="adm-detail-label">Tỉnh/TP</span><span className="adm-detail-val">{selectedUser.province || "—"}</span></div>
                   {/* Số dư ví ẩn: admin không được xem số dư người dùng. */}
@@ -254,6 +300,15 @@ export default function QuanLyNguoiDung() {
                 >
                   Xóa tài khoản
                 </button>
+                {selectedUser.role === "farmer" && selectedUser.farmerApprovalStatus !== "approved" && (
+                  <button
+                    className="adm-btn adm-btn-success"
+                    onClick={() => handleApproveFarmer(selectedUser)}
+                    disabled={approving === selectedUser._id}
+                  >
+                    {approving === selectedUser._id ? "Đang duyệt..." : "Duyệt đăng bán"}
+                  </button>
+                )}
                 <button className="adm-btn adm-btn-outline" onClick={() => setSelectedUser(null)}>Đóng</button>
               </div>
             )}

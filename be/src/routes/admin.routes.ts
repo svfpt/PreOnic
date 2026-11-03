@@ -5,6 +5,7 @@ import {
   getUsers,
   getUserDetail,
   toggleUserStatus,
+  approveFarmer,
   deleteUser,
   getAllContracts,
   getContractDetail,
@@ -37,6 +38,7 @@ router.get('/dashboard', getDashboard);
 router.get('/users', getUsers);
 router.get('/users/:id', getUserDetail);
 router.patch('/users/:id/toggle-status', toggleUserStatus);
+router.patch('/users/:id/approve-farmer', approveFarmer);
 router.delete('/users/:id', deleteUser);
 
 // Contract management

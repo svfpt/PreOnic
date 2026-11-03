@@ -136,7 +136,7 @@ export const getUsers = asyncHandler(
         .skip(skip)
         .limit(limit)
         // Admin không được xem email & số dư ví người dùng → loại email, virtualBalance khỏi payload.
-        .select('fullName phone role isActive isVerified reputationScore createdAt lastLogin province'),
+        .select('fullName phone role isActive isVerified farmerApprovalStatus reputationScore createdAt lastLogin province'),
       User.countDocuments(filter),
     ]);
 
@@ -185,6 +185,30 @@ export const toggleUserStatus = asyncHandler(
       successResponse(
         { userId: user._id, isActive: user.isActive },
         `Tài khoản đã ${user.isActive ? 'kích hoạt' : 'vô hiệu hóa'} thành công`
+      )
+    );
+  }
+);
+
+/**
+ * PATCH /api/v1/admin/users/:id/approve-farmer
+ * Approve a farmer account to publish product listings.
+ */
+export const approveFarmer = asyncHandler(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const user = await User.findById(req.params.id);
+    if (!user || user.isHidden) throw new AppError('Người dùng không tồn tại', 404);
+    if (user.role !== 'farmer') {
+      throw new AppError('Chỉ có thể duyệt tài khoản nông dân', 400);
+    }
+
+    user.farmerApprovalStatus = 'approved';
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json(
+      successResponse(
+        { userId: user._id, farmerApprovalStatus: user.farmerApprovalStatus },
+        'Đã duyệt tài khoản nông dân đăng bán sản phẩm'
       )
     );
   }
