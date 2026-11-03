@@ -73,8 +73,13 @@ const adminService = {
     return response.data;
   },
 
-  completeWithdrawal: async (id, adminNote = '') => {
-    const response = await api.patch(`/admin/withdrawals/${id}/complete`, { adminNote });
+  approveWithdrawal: async (id, adminNote = '') => {
+    const response = await api.patch(`/admin/withdrawals/${id}/approve`, { adminNote });
+    return response.data;
+  },
+
+  syncWithdrawal: async (id) => {
+    const response = await api.post(`/admin/withdrawals/${id}/sync`);
     return response.data;
   },
 

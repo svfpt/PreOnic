@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "Node16",
     "lib": ["ES2020"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node10",
+    "moduleResolution": "Node16",
     "allowSyntheticDefaultImports": true,
     "types": ["node"],
     "noImplicitAny": true,
@@ -20,16 +20,15 @@
     "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": "./src",
     "paths": {
-      "@controllers/*": ["controllers/*"],
-      "@models/*": ["models/*"],
-      "@routes/*": ["routes/*"],
-      "@middlewares/*": ["middlewares/*"],
-      "@services/*": ["services/*"],
-      "@utils/*": ["utils/*"],
-      "@config/*": ["config/*"],
-      "@types/*": ["types/*"]
+      "@controllers/*": ["./src/controllers/*"],
+      "@models/*": ["./src/models/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@middlewares/*": ["./src/middlewares/*"],
+      "@services/*": ["./src/services/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@config/*": ["./src/config/*"],
+      "@types/*": ["./src/types/*"]
     }
   },
   "include": ["src/**/*"],

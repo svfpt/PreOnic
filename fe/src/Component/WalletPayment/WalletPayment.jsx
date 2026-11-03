@@ -1,14 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import paymentService from "../../services/payment.service";
 import { formatMoney } from "../../hooks/useApiData";
-import { GATEWAY_MIN_TOPUP, TOPUP_PRESETS } from "../../constants";
+import { GATEWAY_MIN_TOPUP, GATEWAY_MAX_TOPUP, TOPUP_PRESETS } from "../../constants";
 import WithdrawTab from "./WithdrawTab";
 import "./WalletPayment.css";
 
 const TRANSACTION_PAGE_SIZE = 20;
 const DEMO_MIN_TOPUP = 1000;
+const DEMO_ENABLED = process.env.NODE_ENV !== "production";
+
+const verificationState = (data) => {
+  if (data?.success) return "success";
+  if (["pending", "cancelled"].includes(data?.status)) return data.status;
+  return "failed";
+};
 
 const WALLET_TABS = [
   { key: "overview", label: "Tổng quan" },
@@ -18,6 +25,7 @@ const WALLET_TABS = [
 ];
 
 const HISTORY_FILTERS = [
+  { key: "withdrawal", label: "Rút tiền" },
   { key: "", label: "Tất cả" },
   { key: "topup", label: "Nạp tiền" },
   { key: "escrow_deposit", label: "Ký quỹ" },
@@ -30,7 +38,7 @@ const GUIDE_STEPS = [
     n: "1",
     icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ width: 20, height: 20 }}><rect x="3" y="2" width="14" height="16" rx="2" /><path d="M7 7h6M7 10h6M7 13h4" strokeLinecap="round" /></svg>,
     title: "Nạp tiền vào ví",
-    desc: "Tạo lệnh SePay, chuyển khoản đúng nội dung và chờ hệ thống tự cộng ví qua webhook",
+    desc: "Tạo lệnh payOS, chuyển khoản đúng nội dung và chờ hệ thống tự cộng ví qua webhook",
   },
   {
     n: "2",
@@ -51,6 +59,7 @@ const TYPE_LABELS = {
   escrow_release: "Giải ngân",
   refund: "Hoàn tiền",
   commission: "Phí dịch vụ",
+  withdrawal: "Rút tiền",
 };
 
 const STATUS_LABELS = {
@@ -79,18 +88,12 @@ const formatDateTime = (value) => {
 
 const isPositiveTransaction = (type) => ["topup", "escrow_release", "refund"].includes(type);
 
-const formatPresetLabel = (amount) => (
-  amount >= 1000000000
-    ? `${(amount / 1000000000).toFixed(amount % 1000000000 === 0 ? 0 : 1)} tỷ`
-    : `${(amount / 1000000).toFixed(0)} triệu`
-);
-
 export default function WalletPayment({ role }) {
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [createdTopup, setCreatedTopup] = useState(null);
+  const topupInFlight = useRef(false);
   const [topupAmount, setTopupAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [topupLoading, setTopupLoading] = useState(false);
@@ -133,21 +136,13 @@ export default function WalletPayment({ role }) {
 
     try {
       const res = await paymentService.verifyTopup(String(orderCode));
-      if (res.data?.data?.success) {
-        setVerifyState("success");
-        setCreatedTopup(null);
-        await refreshWalletData(1, "");
-      } else if (res.data?.data?.status === "pending") {
-        setVerifyState("pending");
-      } else if (res.data?.data?.status === "cancelled") {
-        setVerifyState("cancelled");
-      } else {
-        setVerifyState("failed");
-      }
+      const data = res.data?.data;
+      setVerifyState(verificationState(data));
+      await refreshWalletData(txPage, txFilter);
     } catch {
       setVerifyState("failed");
     }
-  }, [refreshWalletData]);
+  }, [refreshWalletData, txPage, txFilter]);
 
   useEffect(() => {
     const init = async () => {
@@ -164,61 +159,44 @@ export default function WalletPayment({ role }) {
     }
   }, [activeTab, txPage, txFilter, loadTransactions]);
 
-  // Giữ khả năng đọc tham số trả về từ gateway để không phải đổi luồng khi bật SePay sau này.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const orderCode = params.get("orderCode");
-    const statusParam = params.get("status");
-    const cancelParam = params.get("cancel");
-    if (!orderCode) return;
-    window.history.replaceState({}, "", window.location.pathname);
-    setReturnOrderCode(orderCode);
-    setActiveTab("topup");
-    if (cancelParam === "true" || statusParam === "CANCELLED") {
-      setVerifyState("cancelled");
-      paymentService.cancelTopup(orderCode).catch(() => {});
-    } else {
-      verifyTopupOrder(orderCode);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Khối handler bên dưới chịu trách nhiệm nạp tiền, hủy giao dịch và cập nhật lại trạng thái ví theo từng thao tác.
   /* ====== TOP-UP HANDLERS ====== */
   const handleGatewayTopup = async () => {
+    if (topupInFlight.current) return;
     const amount = Number(topupAmount);
-    if (!amount || amount < GATEWAY_MIN_TOPUP) {
-      toastError("Số tiền tối thiểu là 10.000 VND");
+    if (!Number.isSafeInteger(amount) || amount < GATEWAY_MIN_TOPUP || amount > GATEWAY_MAX_TOPUP) {
+      toastError("Số tiền phải là số nguyên từ 10.000 đến 500.000.000 VND");
       return;
     }
 
+    topupInFlight.current = true;
     setTopupLoading(true);
     try {
       const res = await paymentService.createTopup(amount);
       const topupData = res.data?.data;
-      if (!topupData) {
-        toastError("Không thể tạo yêu cầu nạp tiền qua SePay");
+      if (!topupData?.checkoutUrl) {
+        toastError("Không thể tạo yêu cầu nạp tiền qua payOS");
         return;
       }
 
-      setCreatedTopup(topupData);
-      setReturnOrderCode(String(topupData.orderCode));
-      setVerifyState("pending");
-      toastSuccess("Đã tạo yêu cầu nạp tiền qua SePay. Hãy chuyển khoản đúng nội dung để hệ thống tự cộng ví.");
+      window.location.assign(topupData.checkoutUrl);
     } catch (err) {
-      toastError(err.response?.data?.message || "Không thể tạo yêu cầu nạp tiền qua SePay");
+      toastError(err.response?.data?.message || "Không thể tạo yêu cầu nạp tiền qua payOS");
     } finally {
+      topupInFlight.current = false;
       setTopupLoading(false);
     }
   };
 
   const handleDemoTopup = async () => {
+    if (topupInFlight.current) return;
     const amount = Number(topupAmount);
-    if (!Number.isSafeInteger(amount) || amount < DEMO_MIN_TOPUP) {
-      toastError("Số tiền nạp demo tối thiểu là 1.000 VND");
+    if (!Number.isSafeInteger(amount) || amount < DEMO_MIN_TOPUP || amount > GATEWAY_MAX_TOPUP) {
+      toastError("Số tiền nạp demo phải là số nguyên từ 1.000 đến 500.000.000 VND");
       return;
     }
 
+    topupInFlight.current = true;
     setTopupLoading(true);
     try {
       const res = await paymentService.demoTopup(amount);
@@ -226,8 +204,6 @@ export default function WalletPayment({ role }) {
         toastError("Không nhận được kết quả nạp demo từ máy chủ");
         return;
       }
-
-      setCreatedTopup(null);
       toastSuccess(`Nạp demo thành công +${formatMoney(amount)}! Đây là tiền ảo, không có giá trị thanh toán thực tế.`);
       setTopupAmount("");
       setTxFilter("topup");
@@ -237,6 +213,7 @@ export default function WalletPayment({ role }) {
     } catch (err) {
       toastError(err.response?.data?.message || "Lỗi nạp demo");
     } finally {
+      topupInFlight.current = false;
       setTopupLoading(false);
     }
   };
@@ -244,9 +221,12 @@ export default function WalletPayment({ role }) {
   const handleCancelTopup = async (orderCode) => {
     setCancellingCode(String(orderCode));
     try {
-      await paymentService.cancelTopup(orderCode);
-      toastSuccess("Đã hủy giao dịch nạp tiền");
-      await refreshWalletData(1, txFilter);
+      const res = await paymentService.cancelTopup(orderCode);
+      toastSuccess(res.data?.message || "Đã cập nhật giao dịch");
+      const data = res.data?.data;
+      setReturnOrderCode(String(orderCode));
+      setVerifyState(verificationState(data));
+      await refreshWalletData(txPage, txFilter);
     } catch (err) {
       toastError(err?.response?.data?.message || "Hủy thất bại");
     } finally {
@@ -258,15 +238,6 @@ export default function WalletPayment({ role }) {
     await verifyTopupOrder(orderCode);
   };
 
-  const copyText = async (value, successMessage) => {
-    try {
-      await navigator.clipboard.writeText(String(value));
-      toastSuccess(successMessage);
-    } catch {
-      toastError("Không thể sao chép. Vui lòng thử lại.");
-    }
-  };
-
   if (loading) {
     return (
       <div className="wlt-loading">
@@ -276,10 +247,10 @@ export default function WalletPayment({ role }) {
     );
   }
 
-  const balance = wallet?.balance || user?.virtualBalance || 0;
+  const balance = wallet?.balance ?? user?.virtualBalance ?? 0;
   const stats = wallet?.stats || {};
   const pendingTopups = (wallet?.recentTransactions || []).filter(
-    (tx) => tx.type === "topup" && tx.status === "pending" && tx.orderCode
+    (tx) => tx.type === "topup" && tx.paymentMethod === "payos" && tx.status === "pending" && tx.orderCode
   );
 
   const TxIcon = ({ type }) => {
@@ -301,8 +272,8 @@ export default function WalletPayment({ role }) {
           {verifyState === "loading" && <><span className="wlt-vspin" /><div><strong>Đang xác minh thanh toán…</strong><p>Vui lòng chờ trong giây lát</p></div></>}
           {verifyState === "success" && <><span className="wlt-vicon wlt-vi-ok">✓</span><div><strong>Nạp tiền thành công!</strong><p>Số dư ví đã được cộng{returnOrderCode ? ` — Mã GD: ${returnOrderCode}` : ""}.</p></div><button className="wlt-vdismiss" onClick={() => setVerifyState(null)}>✕</button></>}
           {verifyState === "failed"  && <><span className="wlt-vicon wlt-vi-err">✗</span><div><strong>Xác minh thất bại</strong><p>Nếu tiền đã bị trừ, liên hệ hỗ trợ với mã: {returnOrderCode}</p></div><button className="wlt-vdismiss" onClick={() => setVerifyState(null)}>✕</button></>}
-          {verifyState === "cancelled" && <><span className="wlt-vicon wlt-vi-warn">!</span><div><strong>Giao dịch đã hủy</strong><p>Bạn đã hủy phiên thanh toán. Không có tiền nào bị trừ.</p></div><button className="wlt-vdismiss" onClick={() => setVerifyState(null)}>✕</button></>}
-          {verifyState === "pending" && <><span className="wlt-vicon wlt-vi-warn">!</span><div><strong>Chưa xác nhận</strong><p>Giao dịch đang chờ SePay xác nhận chuyển khoản.</p></div><button className="wlt-vdismiss" onClick={() => setVerifyState(null)}>✕</button></>}
+          {verifyState === "cancelled" && <><span className="wlt-vicon wlt-vi-warn">!</span><div><strong>Giao dịch đã hủy</strong><p>Lệnh thanh toán đã hủy hoặc hết hạn. Nếu đã chuyển khoản, vui lòng liên hệ hỗ trợ.</p></div><button className="wlt-vdismiss" onClick={() => setVerifyState(null)}>✕</button></>}
+          {verifyState === "pending" && <><span className="wlt-vicon wlt-vi-warn">!</span><div><strong>Chưa xác nhận</strong><p>Giao dịch đang chờ payOS xác nhận chuyển khoản.</p></div><button className="wlt-vdismiss" onClick={() => setVerifyState(null)}>✕</button></>}
         </div>
       )}
 
@@ -398,6 +369,7 @@ export default function WalletPayment({ role }) {
                     </div>
                   </div>
                   <div className="wlt-pending-row-actions">
+                    {tx.metadata?.checkoutUrl && <a className="wlt-action-btn wlt-action-verify" href={tx.metadata.checkoutUrl}>Thanh toán</a>}
                     <button className="wlt-action-btn wlt-action-verify" onClick={() => handleVerify(tx.orderCode)}>Xác minh</button>
                     <button
                       className="wlt-action-btn wlt-action-cancel"
@@ -515,7 +487,7 @@ export default function WalletPayment({ role }) {
                     className={`wlt-preset-chip ${Number(topupAmount) === amt ? "wlt-preset-active" : ""}`}
                     onClick={() => setTopupAmount(String(amt))}
                   >
-                    {formatPresetLabel(amt)}
+                    {formatMoney(amt)}
                   </button>
                 ))}
               </div>
@@ -531,7 +503,7 @@ export default function WalletPayment({ role }) {
                   value={topupAmount}
                   onChange={(e) => setTopupAmount(e.target.value)}
                   min="1000"
-                  max="999000000000000"
+                  max={GATEWAY_MAX_TOPUP}
                 />
                 <span className="wlt-amount-suffix">VND</span>
               </div>
@@ -547,87 +519,21 @@ export default function WalletPayment({ role }) {
                 <button
                   className="wlt-btn-gateway"
                   onClick={handleGatewayTopup}
-                  disabled={topupLoading || !topupAmount || Number(topupAmount) < GATEWAY_MIN_TOPUP}
+                  disabled={topupLoading || !Number.isSafeInteger(Number(topupAmount)) || Number(topupAmount) < GATEWAY_MIN_TOPUP || Number(topupAmount) > GATEWAY_MAX_TOPUP}
                 >
-                  {topupLoading ? <span className="wlt-bspin" /> : <><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ width: 17, height: 17 }}><path d="M3 8l7-5 7 5H3z"/><path d="M5 8v7m4-7v7m4-7v7M3 15h14" strokeLinecap="round"/></svg> Tạo lệnh SePay</>}
+                  {topupLoading ? <span className="wlt-bspin" /> : <><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ width: 17, height: 17 }}><path d="M3 8l7-5 7 5H3z"/><path d="M5 8v7m4-7v7m4-7v7M3 15h14" strokeLinecap="round"/></svg> Tạo lệnh payOS</>}
                 </button>
+                {DEMO_ENABLED && <>
                 <button
                   className="wlt-btn-demo"
                   onClick={handleDemoTopup}
-                  disabled={topupLoading || !topupAmount || Number(topupAmount) < DEMO_MIN_TOPUP}
+                  disabled={topupLoading || !Number.isSafeInteger(Number(topupAmount)) || Number(topupAmount) < DEMO_MIN_TOPUP || Number(topupAmount) > GATEWAY_MAX_TOPUP}
                 >
                   {topupLoading ? <span className="wlt-bspin" /> : <><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ width: 17, height: 17 }}><path d="M11 2L4 12h7l-2 6 9-10h-7L11 2z" strokeLinejoin="round"/></svg> Nạp demo (tức thì)</>}
                 </button>
                 <p className="wlt-demo-notice">Nạp demo chỉ cộng tiền ảo phục vụ thử nghiệm, không phải giao dịch thật.</p>
+                </>}
               </div>
-
-              {createdTopup && (
-                <div className="wlt-sepay-card">
-                  <div className="wlt-sepay-head">
-                    <div>
-                      <strong>Thông tin chuyển khoản SePay</strong>
-                      <p>Quét mã QR hoặc chuyển khoản thủ công đúng nội dung bên dưới.</p>
-                    </div>
-                    <span className="wlt-sepay-pill">Đang chờ</span>
-                  </div>
-
-                  <div className="wlt-sepay-grid">
-                    <div className="wlt-sepay-qr-wrap">
-                      <img
-                        className="wlt-sepay-qr"
-                        src={createdTopup.qrCodeUrl}
-                        alt={`QR SePay ${createdTopup.orderCode}`}
-                      />
-                    </div>
-
-                    <div className="wlt-sepay-details">
-                      <div className="wlt-sepay-row">
-                        <span>Ngân hàng</span>
-                        <strong>{createdTopup.bankInfo?.bankCode}</strong>
-                      </div>
-                      <div className="wlt-sepay-row">
-                        <span>Số tài khoản</span>
-                        <strong>{createdTopup.bankInfo?.accountNumber}</strong>
-                      </div>
-                      <div className="wlt-sepay-row">
-                        <span>Chủ tài khoản</span>
-                        <strong>{createdTopup.bankInfo?.accountName}</strong>
-                      </div>
-                      <div className="wlt-sepay-row">
-                        <span>Số tiền</span>
-                        <strong>{formatMoney(createdTopup.amount)}</strong>
-                      </div>
-                      <div className="wlt-sepay-row wlt-sepay-row-code">
-                        <span>Nội dung CK</span>
-                        <strong>{createdTopup.transferCode}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="wlt-sepay-actions">
-                    <button
-                      className="wlt-sepay-btn"
-                      onClick={() => copyText(createdTopup.bankInfo?.accountNumber, "Đã sao chép số tài khoản")}
-                    >
-                      Sao chép STK
-                    </button>
-                    <button
-                      className="wlt-sepay-btn"
-                      onClick={() => copyText(createdTopup.transferCode, "Đã sao chép nội dung chuyển khoản")}
-                    >
-                      Sao chép nội dung
-                    </button>
-                    <button
-                      className="wlt-sepay-btn wlt-sepay-btn-primary"
-                      onClick={() => handleVerify(createdTopup.orderCode)}
-                    >
-                      Kiểm tra trạng thái
-                    </button>
-                  </div>
-
-                  <p className="wlt-sepay-note">{createdTopup.note}</p>
-                </div>
-              )}
             </div>
 
             {/* Right: info */}
@@ -641,19 +547,10 @@ export default function WalletPayment({ role }) {
                   <div className="wlt-info-row wlt-info-gateway">
                     <div className="wlt-info-row-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ width: 22, height: 22 }}><path d="M3 8l7-5 7 5H3z"/><path d="M5 8v7m4-7v7m4-7v7M3 15h14" strokeLinecap="round"/></svg></div>
                     <div>
-                      <strong>SePay — Chuyển khoản tự động</strong>
-                      <p>Tạo lệnh nạp tiền, chuyển khoản đúng nội dung, SePay sẽ gửi webhook để hệ thống cộng ví tự động.</p>
+                      <strong>payOS — Chuyển khoản tự động</strong>
+                      <p>Tạo lệnh nạp tiền, chuyển khoản đúng nội dung, payOS sẽ gửi webhook để hệ thống cộng ví tự động.</p>
                     </div>
                   </div>
-                  {/* Mục thông tin "Demo" tạm ẩn — bỏ comment để kích hoạt lại sau. */}
-                  {/* <div className="wlt-info-divider" />
-                  <div className="wlt-info-row wlt-info-demo">
-                    <div className="wlt-info-row-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ width: 22, height: 22 }}><path d="M11 2L4 12h7l-2 6 9-10h-7L11 2z" strokeLinejoin="round"/></svg></div>
-                    <div>
-                      <strong>Demo — Miễn phí</strong>
-                      <p>Nạp tức thì, không cần thanh toán — dùng để trải nghiệm và kiểm thử hệ thống.</p>
-                    </div>
-                  </div> */}
                 </div>
               </div>
 
@@ -663,7 +560,7 @@ export default function WalletPayment({ role }) {
                   <h3>Bảo mật & An toàn</h3>
                 </div>
                 <div className="wlt-security-list">
-                  {["Giao dịch được mã hóa SSL 256-bit", "Tiền ký quỹ không thể rút đơn phương", "SePay xác minh tự động qua webhook khi chuyển khoản thành công", "Hoàn tiền đầy đủ nếu tranh chấp"].map((s) => (
+                  {["Giao dịch được mã hóa SSL 256-bit", "Tiền ký quỹ không thể rút đơn phương", "payOS xác minh tự động qua webhook khi chuyển khoản thành công", "Hoàn tiền đầy đủ nếu tranh chấp"].map((s) => (
                     <div className="wlt-security-item" key={s}>
                       <span className="wlt-security-check">✓</span>
                       <span>{s}</span>

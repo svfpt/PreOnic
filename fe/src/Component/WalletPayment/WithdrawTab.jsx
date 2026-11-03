@@ -1,155 +1,20 @@
-// Tab "Rút tiền" trong ví: user làm đơn xin rút -> Admin duyệt -> hệ thống trừ số dư.
+// Rút tiền: giữ số dư -> admin duyệt -> payOS chuyển tiền và đối soát.
 import { useState, useEffect, useCallback, useRef } from "react";
-import { FiArrowUpRight, FiClock, FiCheckCircle, FiXCircle, FiSearch, FiChevronDown, FiX } from "react-icons/fi";
+import { FiArrowUpRight, FiClock, FiCheckCircle, FiXCircle } from "react-icons/fi";
 import { useToast } from "../../contexts/ToastContext";
 import paymentService from "../../services/payment.service";
 import { formatMoney } from "../../hooks/useApiData";
 
-const VN_BANKS = [
-  "Vietcombank (VCB)",
-  "VietinBank (CTG)",
-  "BIDV",
-  "Agribank",
-  "Techcombank",
-  "MB Bank",
-  "ACB",
-  "VPBank",
-  "Sacombank",
-  "HDBank",
-  "TPBank",
-  "OCB",
-  "VIB",
-  "SHB",
-  "SeABank",
-  "Eximbank",
-  "LienVietPostBank",
-  "MSB (Maritime Bank)",
-  "Nam A Bank",
-  "BaoViet Bank",
-  "Bac A Bank",
-  "PVcomBank",
-  "SCB (Saigon Commercial Bank)",
-  "Kiên Long Bank",
-  "VietBank",
-  "NCB (National Citizen Bank)",
-  "ABBank",
-  "Saigon Bank",
-  "VietABank",
-  "PG Bank",
-  "Dong A Bank",
-  "CBBank",
-  "GPBank",
-  "OceanBank",
-  "HSBC Việt Nam",
-  "Standard Chartered Việt Nam",
-  "Shinhan Bank Việt Nam",
-  "UOB Việt Nam",
-  "Woori Bank Việt Nam",
-  "Cake by VPBank",
-  "Timo",
-];
-
-function BankSelect({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const rootRef = useRef(null);
-  const searchRef = useRef(null);
-
-  const filtered = VN_BANKS.filter((b) =>
-    b.toLowerCase().includes(search.toLowerCase())
-  );
-
-  useEffect(() => {
-    const onDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
-    };
-    if (open) {
-      document.addEventListener("mousedown", onDown);
-      setTimeout(() => searchRef.current?.focus(), 60);
-    }
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const select = (bank) => {
-    onChange(bank);
-    setOpen(false);
-    setSearch("");
-  };
-
-  const clear = (e) => {
-    e.stopPropagation();
-    onChange("");
-    setSearch("");
-  };
-
-  return (
-    <div className="wd-bank-select" ref={rootRef}>
-      <div
-        className={`wd-bank-trigger ${open ? "open" : ""}`}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className={`wd-bank-trigger-text ${!value ? "placeholder" : ""}`}>
-          {value || "Chọn hoặc nhập tên ngân hàng"}
-        </span>
-        <span className="wd-bank-trigger-icons">
-          {value && (
-            <button type="button" className="wd-bank-clear" onClick={clear} title="Xoá">
-              <FiX size={13} />
-            </button>
-          )}
-          <FiChevronDown size={15} className={`wd-bank-chevron ${open ? "rotated" : ""}`} />
-        </span>
-      </div>
-
-      {open && (
-        <div className="wd-bank-dropdown">
-          <div className="wd-bank-search-wrap">
-            <FiSearch size={14} className="wd-bank-search-icon" />
-            <input
-              ref={searchRef}
-              className="wd-bank-search"
-              placeholder="Tìm ngân hàng..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-
-          <div className="wd-bank-list">
-            {filtered.length === 0 ? (
-              <div className="wd-bank-none">Không tìm thấy ngân hàng</div>
-            ) : (
-              filtered.map((bank) => (
-                <button
-                  key={bank}
-                  type="button"
-                  className={`wd-bank-item ${value === bank ? "selected" : ""}`}
-                  onClick={() => select(bank)}
-                >
-                  {bank}
-                  {value === bank && <FiCheckCircle size={13} className="wd-bank-item-check" />}
-                </button>
-              ))
-            )}
-          </div>
-
-          <div className="wd-bank-manual">
-            <span>Không có trong danh sách?</span>
-            <input
-              className="wd-bank-manual-input"
-              placeholder="Nhập tên ngân hàng..."
-              value={VN_BANKS.includes(value) ? "" : value}
-              onChange={(e) => onChange(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function BankSelect({ value, onChange, banks }) {
+  return <select className="wd-input" value={value} onChange={event => onChange(event.target.value)} required>
+    <option value="">Chọn ngân hàng nhận tiền</option>
+    {banks.map(bank => <option key={bank.bin} value={bank.bin}>{bank.shortName} — {bank.name}</option>)}
+  </select>;
 }
 
 const STATUS_META = {
+  processing: { label: "Đang chuyển / đối soát", cls: "#1d4ed8", bg: "#dbeafe", icon: <FiClock size={13} /> },
+  failed: { label: "Chuyển thất bại", cls: "#b91c1c", bg: "#fee2e2", icon: <FiXCircle size={13} /> },
   pending:   { label: "Chờ duyệt",   cls: "#b45309", bg: "#fef3c7", icon: <FiClock size={13} /> },
   completed: { label: "Đã chuyển",   cls: "#15803d", bg: "#dcfce7", icon: <FiCheckCircle size={13} /> },
   rejected:  { label: "Từ chối",     cls: "#b91c1c", bg: "#fee2e2", icon: <FiXCircle size={13} /> },
@@ -160,40 +25,47 @@ const fmtDate = (v) => v ? new Date(v).toLocaleDateString("vi-VN", { day: "2-dig
 export default function WithdrawTab({ onChanged }) {
   const { success: toastSuccess, error: toastError } = useToast();
   const [data, setData] = useState(null);
-  const [form, setForm] = useState({ amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", note: "" });
+  const [banks, setBanks] = useState([]);
+  const [loadError, setLoadError] = useState("");
+  const inFlight = useRef(false);
+  const [form, setForm] = useState({ amount: "", bankBin: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const res = await paymentService.getWithdrawals();
+      const [res, bankRes] = await Promise.all([paymentService.getWithdrawals(), paymentService.getWithdrawalBanks()]);
+      setBanks(bankRes.data?.data?.banks || []);
+      setLoadError("");
       if (res.data?.data) setData(res.data.data);
-    } catch { /* silent */ }
+    } catch { setLoadError("Không thể tải thông tin rút tiền. Vui lòng thử lại."); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); const timer = setInterval(load, 10000); return () => clearInterval(timer); }, [load]);
 
   const available = data?.available ?? 0;
   const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (submitting) return;
+    if (inFlight.current) return;
     const amount = parseInt(String(form.amount).replace(/[^0-9]/g, ""), 10) || 0;
-    if (amount <= 0) { toastError("Vui lòng nhập số tiền muốn rút"); return; }
+    if (!Number.isSafeInteger(amount) || amount < 10000 || amount > 500000000) { toastError("Số tiền rút phải từ 10.000 đến 500.000.000 VND"); return; }
     if (amount > available) { toastError("Số tiền vượt quá số dư khả dụng"); return; }
     if (!form.bankName.trim() || !form.bankAccountNumber.trim() || !form.bankAccountHolder.trim()) {
       toastError("Vui lòng nhập đầy đủ thông tin ngân hàng"); return;
     }
+    inFlight.current = true;
     setSubmitting(true);
     try {
       await paymentService.createWithdrawal({ ...form, amount });
       toastSuccess("Đã gửi yêu cầu rút tiền. Vui lòng chờ quản trị viên duyệt.");
-      setForm({ amount: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", note: "" });
+      setForm({ amount: "", bankBin: "", bankName: "", bankAccountNumber: "", bankAccountHolder: "", note: "" });
       await load();
       onChanged?.();
     } catch (err) {
       toastError(err?.response?.data?.message || "Gửi yêu cầu rút tiền thất bại");
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -201,6 +73,7 @@ export default function WithdrawTab({ onChanged }) {
   return (
     <div className="wlt-body">
       <div className="wd-grid">
+        {loadError && <p role="alert">{loadError}</p>}
         {/* FORM */}
         <form className="wlt-card wd-form" onSubmit={handleSubmit}>
           <div className="wlt-card-head">
@@ -223,7 +96,7 @@ export default function WithdrawTab({ onChanged }) {
             }} />
 
           <label className="wd-label">Ngân hàng <span>*</span></label>
-          <BankSelect value={form.bankName} onChange={(v) => setField("bankName", v)} />
+          <BankSelect banks={banks} value={form.bankBin} onChange={bin => setForm(previous => ({ ...previous, bankBin: bin, bankName: banks.find(bank => bank.bin === bin)?.shortName || "" }))} />
 
           <label className="wd-label">Số tài khoản <span>*</span></label>
           <input className="wd-input" inputMode="numeric" placeholder="Số tài khoản nhận tiền" value={form.bankAccountNumber} onChange={(e) => setField("bankAccountNumber", e.target.value)} />
@@ -234,10 +107,10 @@ export default function WithdrawTab({ onChanged }) {
           <label className="wd-label">Ghi chú (không bắt buộc)</label>
           <textarea className="wd-input" rows={2} placeholder="Ghi chú thêm cho quản trị viên..." value={form.note} onChange={(e) => setField("note", e.target.value)} />
 
-          <button className="wd-submit" type="submit" disabled={submitting}>
+          <button className="wd-submit" type="submit" disabled={submitting || !data || !banks.length}>
             {submitting ? "Đang gửi..." : "Gửi yêu cầu rút tiền"}
           </button>
-          <p className="wd-hint">Quản trị viên sẽ kiểm tra và chuyển khoản thủ công. Số dư chỉ bị trừ khi yêu cầu được hoàn tất.</p>
+          <p className="wd-hint">Tiền được giữ ngay khi gửi yêu cầu. Sau khi admin duyệt, hệ thống chuyển tiền qua payOS. Nếu bị từ chối hoặc chuyển thất bại đã được xác nhận, tiền giữ được hoàn lại.</p>
         </form>
 
         {/* HISTORY */}

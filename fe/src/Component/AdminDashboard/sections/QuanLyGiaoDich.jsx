@@ -4,6 +4,7 @@ import { formatMoney } from "../../../hooks/useApiData";
 import { useToast } from "../../../contexts/ToastContext";
 
 const TYPE_META = {
+  withdrawal: { label: "Rút tiền", cls: "adm-badge-red" },
   topup:           { label: "Nạp tiền",  cls: "adm-badge-green"  },
   escrow_deposit:  { label: "Ký quỹ",    cls: "adm-badge-blue"   },
   escrow_release:  { label: "Giải ngân", cls: "adm-badge-purple" },
@@ -19,10 +20,12 @@ const STATUS_META = {
 };
 
 const METHOD_LABELS = {
-  sepay: "SePay", internal: "Nội bộ", demo: "Demo",
+  payos: "payOS",
+  internal: "Nội bộ", demo: "Demo", bank_transfer: "Chuyển khoản",
 };
 
 const TYPE_OPTIONS = [
+  { val: "withdrawal", label: "Rút tiền" },
   { val: "", label: "Tất cả loại" },
   { val: "topup", label: "Nạp tiền" },
   { val: "escrow_deposit", label: "Ký quỹ" },
