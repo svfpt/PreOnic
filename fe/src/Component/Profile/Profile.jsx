@@ -4,18 +4,20 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { ROUTES } from "../../constants";
 import authService from "../../services/auth.service";
+import productService from "../../services/product.service";
 import { formatMoney } from "../../hooks/useApiData";
+import { FiArrowLeft, FiCamera, FiCheckCircle, FiEdit3, FiShield, FiUser } from "react-icons/fi";
 import "./Profile.css";
 
-function validate(form, isFarmer) {
+function validate(form, role) {
   const errors = {};
   if (!form.fullName.trim()) errors.fullName = "Họ tên không được để trống";
   if (!form.phone || !/^[0-9]{10,11}$/.test(form.phone.trim())) errors.phone = "Số điện thoại bắt buộc (10-11 chữ số)";
-  if (!form.address?.trim() && !form.province?.trim()) errors.address = "Vui lòng nhập địa chỉ hoặc tỉnh/thành";
-  if (isFarmer) {
+  if (!form.province?.trim()) errors.province = "Vui lòng nhập tỉnh/thành phố";
+  if (role === "farmer") {
     if (!form.farmName?.trim()) errors.farmName = "Tên nông trại bắt buộc";
-    if (form.farmSize && isNaN(Number(form.farmSize))) errors.farmSize = "Diện tích phải là số";
-  } else {
+    if (form.farmSize && (!Number.isFinite(Number(form.farmSize)) || Number(form.farmSize) < 0)) errors.farmSize = "Diện tích phải là số không âm";
+  } else if (role === "enterprise") {
     if (!form.companyName?.trim()) errors.companyName = "Tên công ty bắt buộc";
     if (!form.taxCode?.trim()) errors.taxCode = "Mã số thuế bắt buộc";
   }
@@ -43,6 +45,45 @@ export default function Profile() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  useEffect(() => {
+    if (!avatarFile) { setAvatarPreview(""); return undefined; }
+    const url = URL.createObjectURL(avatarFile);
+    setAvatarPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatarFile]);
+
+  const chooseAvatar = event => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setAvatarError("");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setAvatarError("Vui lòng chọn ảnh JPG, PNG hoặc WebP."); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Ảnh đại diện tối đa 5MB."); return;
+    }
+    setAvatarFile(file);
+  };
+
+  const saveAvatar = async () => {
+    if (!avatarFile || savingAvatar) return;
+    setSavingAvatar(true); setAvatarError("");
+    try {
+      const avatar = await productService.uploadImage(avatarFile);
+      const response = await authService.updateProfile({ avatar });
+      if (!response.data?.user) throw new Error("Chưa lưu được ảnh đại diện. Vui lòng thử lại.");
+      setProfile(response.data.user);
+      updateUser(response.data.user);
+      setAvatarFile(null);
+      toast.success("Đổi ảnh đại diện thành công!");
+    } catch (error) { setAvatarError(error.message || "Không thể đổi ảnh đại diện. Vui lòng thử lại."); }
+    finally { setSavingAvatar(false); }
+  };
 
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
@@ -70,9 +111,14 @@ export default function Profile() {
 
   const data = profile || user || {};
   const isFarmer = data.role === "farmer";
+  const isAdmin = data.role === "admin";
+  const requiredFields = [data.fullName, data.phone, data.province,
+    ...(isFarmer ? [data.farmName] : data.role === "enterprise" ? [data.companyName, data.taxCode] : [])];
+  const completion = Math.round(requiredFields.filter(value => String(value || "").trim()).length / requiredFields.length * 100);
 
   const handleSave = async () => {
-    const errs = validate(form, isFarmer);
+    if (saving) return;
+    const errs = validate(form, data.role);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
     setSaving(true);
@@ -84,8 +130,8 @@ export default function Profile() {
         toast.success("Cập nhật hồ sơ thành công!");
       }
       setEditing(false);
-    } catch {
-      toast.error("Cập nhật thất bại. Vui lòng thử lại.");
+    } catch (err) {
+      toast.error(err?.message || "Cập nhật thất bại. Vui lòng thử lại.");
     } finally {
       setSaving(false);
     }
@@ -119,24 +165,29 @@ export default function Profile() {
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
-  const dashRoute = isFarmer ? ROUTES.FARMER : ROUTES.ENTERPRISE;
+  const dashRoute = isAdmin ? ROUTES.ADMIN : isFarmer ? ROUTES.FARMER : ROUTES.ENTERPRISE;
   const roleBadgeCls = isFarmer ? "role-farmer" : "role-enterprise";
-  const roleLabel = isFarmer ? "Nông dân" : "Doanh nghiệp";
+  const roleLabel = isAdmin ? "Quản trị viên" : isFarmer ? "Nông dân" : "Doanh nghiệp";
 
   return (
     <div className="profile-page">
       {/* Topbar */}
       <div className="profile-topbar">
-        <div className="profile-topbar-logo" onClick={() => navigate(ROUTES.HOME)}>
+        <button className="profile-topbar-logo" onClick={() => navigate(ROUTES.HOME)} aria-label="Về trang chủ PreOnic">
           <div className="profile-topbar-logo-img" />
           <span className="profile-topbar-brand">PreOnic</span>
-        </div>
+        </button>
         <button className="profile-back-btn" onClick={() => navigate(dashRoute)}>
-          ← Về Dashboard
+          <FiArrowLeft aria-hidden="true" /> Về trang quản lý
         </button>
       </div>
 
       <div className="profile-container">
+        <div className="profile-page-heading">
+          <span>TÀI KHOẢN CỦA TÔI</span>
+          <h1>Hồ sơ cá nhân</h1>
+          <p>Quản lý thông tin cá nhân và bảo mật tài khoản của bạn.</p>
+        </div>
         {!isProfileComplete(data) && (
           <div style={{
             background: '#fff7e6', border: '1px solid #f59e0b', color: '#92400e',
@@ -149,7 +200,7 @@ export default function Profile() {
               Bạn cần cập nhật đầy đủ thông tin {isFarmer ? 'nông trại' : 'doanh nghiệp'} (tên, địa chỉ, {isFarmer ? 'tên nông trại' : 'mã số thuế'}) trước khi thực hiện các thao tác trên hệ thống.
             </div>
             {!editing && (
-              <button className="btn-edit" onClick={() => setEditing(true)}>
+              <button className="btn-edit" disabled={savingAvatar || Boolean(avatarFile)} onClick={() => setEditing(true)}>
                 Bổ sung ngay
               </button>
             )}
@@ -158,22 +209,46 @@ export default function Profile() {
 
         {/* Header Card */}
         <div className="profile-header">
-          <div className="profile-avatar">
-            {(data.fullName || "U").slice(0, 2).toUpperCase()}
+          <div className="profile-avatar-control">
+            <div className="profile-avatar">
+              {avatarPreview || data.avatar ? <img src={avatarPreview || data.avatar} alt="Ảnh đại diện" referrerPolicy="no-referrer" /> : (data.fullName || "U").trim().split(/\s+/).map(word => word[0]).slice(-2).join("").toUpperCase()}
+            </div>
+            <label className={`profile-avatar-picker${savingAvatar || editing ? " is-disabled" : ""}`}>
+              <FiCamera aria-hidden="true" /> Đổi ảnh
+              <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Chọn ảnh đại diện"
+                disabled={savingAvatar || editing} onChange={chooseAvatar} />
+            </label>
           </div>
           <div className="profile-header-info">
-            <h1>{data.fullName || "Người dùng"}</h1>
+            <h2>{data.fullName || "Người dùng"}</h2>
             <p className="profile-role">{data.email}</p>
             <div className="profile-badges">
               <span className={`badge ${roleBadgeCls}`}>{roleLabel}</span>
-              {data.isVerified && <span className="badge verified">✓ Đã xác thực email</span>}
+              {data.isVerified ? <span className="badge verified"><FiCheckCircle aria-hidden="true" /> Đã xác thực email</span> : <span className="badge unverified">Chưa xác thực email</span>}
             </div>
           </div>
           {!editing && (
-            <button className="btn-edit" onClick={() => setEditing(true)}>
-              Chỉnh sửa hồ sơ
+            <button className="btn-edit" disabled={savingAvatar || Boolean(avatarFile)} onClick={() => setEditing(true)}>
+              <FiEdit3 aria-hidden="true" /> Chỉnh sửa hồ sơ
             </button>
           )}
+        </div>
+
+        {(avatarFile || avatarError) && <div className="profile-avatar-confirm" aria-busy={savingAvatar}>
+          <div><strong>{avatarFile ? "Xem trước ảnh đại diện" : "Chọn ảnh đại diện"}</strong>
+            <p>JPG, PNG hoặc WebP · Tối đa 5MB. Ảnh được cắt vừa khung đại diện.</p>
+            {avatarError && <p role="alert" className="field-error">{avatarError}</p>}
+          </div>
+          {avatarFile && <div className="profile-avatar-actions">
+            <button className="btn-cancel" disabled={savingAvatar} onClick={() => { setAvatarFile(null); setAvatarError(""); }}>Hủy đổi ảnh</button>
+            <button className="btn-save" disabled={savingAvatar} onClick={saveAvatar}>{savingAvatar ? "Đang tải ảnh…" : "Lưu ảnh đại diện"}</button>
+          </div>}
+        </div>}
+
+        <div className="profile-completion">
+          <div><span><FiCheckCircle aria-hidden="true" /> Hoàn thiện hồ sơ</span><strong>{completion}%</strong></div>
+          <div className="profile-completion-track" role="progressbar" aria-label="Mức độ hoàn thiện hồ sơ" aria-valuenow={completion} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${completion}%` }} /></div>
+          <p>{isProfileComplete(data) ? "Thông tin đã đầy đủ. Bạn có thể sử dụng các tính năng trên hệ thống." : "Bổ sung thông tin liên hệ và thông tin hoạt động để bắt đầu giao dịch."}</p>
         </div>
 
         {/* Info Grid */}
@@ -181,13 +256,13 @@ export default function Profile() {
           {/* Account Info */}
           <div className="profile-card">
             <div className="profile-card-header">
-              <h3>Thông tin tài khoản</h3>
+              <h3><FiUser aria-hidden="true" /> Thông tin tài khoản</h3>
             </div>
             <div className="profile-field">
               <label>Họ tên</label>
               {editing ? (
                 <>
-                  <input value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} className={errors.fullName ? "error" : ""} placeholder="Nhập họ tên..." />
+                  <input aria-label="Họ tên" value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} className={errors.fullName ? "error" : ""} placeholder="Nhập họ tên..." />
                   {errors.fullName && <span className="field-error">{errors.fullName}</span>}
                 </>
               ) : (
@@ -196,13 +271,13 @@ export default function Profile() {
             </div>
             <div className="profile-field">
               <label>Email</label>
-              <input value={data.email || ""} disabled />
+              <input aria-label="Email" value={data.email || ""} disabled />
             </div>
             <div className="profile-field">
               <label>Số điện thoại</label>
               {editing ? (
                 <>
-                  <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={errors.phone ? "error" : ""} placeholder="VD: 0901234567" />
+                  <input aria-label="Số điện thoại" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={errors.phone ? "error" : ""} placeholder="VD: 0901234567" />
                   {errors.phone && <span className="field-error">{errors.phone}</span>}
                 </>
               ) : (
@@ -212,7 +287,8 @@ export default function Profile() {
             <div className="profile-field">
               <label>Tỉnh/Thành phố</label>
               {editing ? (
-                <input value={form.province} onChange={e => setForm({ ...form, province: e.target.value })} placeholder="VD: Hà Nội, Lâm Đồng..." />
+                <><input aria-label="Tỉnh/Thành phố" value={form.province} onChange={e => setForm({ ...form, province: e.target.value })} className={errors.province ? "error" : ""} placeholder="VD: Hà Nội, Lâm Đồng..." />
+                {errors.province && <span className="field-error">{errors.province}</span>}</>
               ) : (
                 <p className={data.province ? "" : "placeholder"}>{data.province || "Chưa cập nhật"}</p>
               )}
@@ -221,7 +297,7 @@ export default function Profile() {
               <label>Địa chỉ chi tiết</label>
               {editing ? (
                 <>
-                  <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className={errors.address ? "error" : ""} placeholder="Địa chỉ của bạn..." />
+                  <input aria-label="Địa chỉ chi tiết" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className={errors.address ? "error" : ""} placeholder="Địa chỉ của bạn..." />
                   {errors.address && <span className="field-error">{errors.address}</span>}
                 </>
               ) : (
@@ -233,7 +309,7 @@ export default function Profile() {
           {/* Role-specific info */}
           <div className="profile-card">
             <div className="profile-card-header">
-              <h3>{isFarmer ? "Thông tin nông trại" : "Thông tin doanh nghiệp"}</h3>
+              <h3>{isAdmin ? "Thông tin hoạt động" : isFarmer ? "Thông tin nông trại" : "Thông tin doanh nghiệp"}</h3>
             </div>
             {isFarmer ? (
               <>
@@ -241,7 +317,7 @@ export default function Profile() {
                   <label>Tên nông trại <span style={{color:'#dc2626'}}>*</span></label>
                   {editing ? (
                     <>
-                      <input value={form.farmName} onChange={e => setForm({ ...form, farmName: e.target.value })} className={errors.farmName ? "error" : ""} placeholder="VD: Nông trại Xanh..." />
+                      <input aria-label="Tên nông trại" value={form.farmName} onChange={e => setForm({ ...form, farmName: e.target.value })} className={errors.farmName ? "error" : ""} placeholder="VD: Nông trại Xanh..." />
                       {errors.farmName && <span className="field-error">{errors.farmName}</span>}
                     </>
                   ) : (
@@ -252,7 +328,7 @@ export default function Profile() {
                   <label>Diện tích (ha)</label>
                   {editing ? (
                     <>
-                      <input value={form.farmSize} onChange={e => setForm({ ...form, farmSize: e.target.value })} className={errors.farmSize ? "error" : ""} placeholder="VD: 2.5" type="text" />
+                      <input aria-label="Diện tích (ha)" value={form.farmSize} onChange={e => setForm({ ...form, farmSize: e.target.value })} className={errors.farmSize ? "error" : ""} placeholder="VD: 2.5" type="text" />
                       {errors.farmSize && <span className="field-error">{errors.farmSize}</span>}
                     </>
                   ) : (
@@ -260,13 +336,13 @@ export default function Profile() {
                   )}
                 </div>
               </>
-            ) : (
+            ) : !isAdmin ? (
               <>
                 <div className="profile-field">
                   <label>Tên công ty <span style={{color:'#dc2626'}}>*</span></label>
                   {editing ? (
                     <>
-                      <input value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })} className={errors.companyName ? "error" : ""} placeholder="VD: Công ty TNHH ABC..." />
+                      <input aria-label="Tên công ty" value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })} className={errors.companyName ? "error" : ""} placeholder="VD: Công ty TNHH ABC..." />
                       {errors.companyName && <span className="field-error">{errors.companyName}</span>}
                     </>
                   ) : (
@@ -277,7 +353,7 @@ export default function Profile() {
                   <label>Mã số thuế <span style={{color:'#dc2626'}}>*</span></label>
                   {editing ? (
                     <>
-                      <input value={form.taxCode} onChange={e => setForm({ ...form, taxCode: e.target.value })} className={errors.taxCode ? "error" : ""} placeholder="VD: 0123456789" />
+                      <input aria-label="Mã số thuế" value={form.taxCode} onChange={e => setForm({ ...form, taxCode: e.target.value })} className={errors.taxCode ? "error" : ""} placeholder="VD: 0123456789" />
                       {errors.taxCode && <span className="field-error">{errors.taxCode}</span>}
                     </>
                   ) : (
@@ -285,7 +361,7 @@ export default function Profile() {
                   )}
                 </div>
               </>
-            )}
+            ) : <p className="profile-admin-note">Tài khoản quản trị hệ thống PreOnic.</p>}
             <div className="profile-field">
               <label>Ngày tham gia</label>
               <p>{fmtDate(data.createdAt)}</p>
@@ -325,7 +401,7 @@ export default function Profile() {
         {/* Edit Actions */}
         {editing && (
           <div className="profile-actions">
-            <button className="btn-cancel" onClick={handleCancelEdit}>Hủy</button>
+            <button className="btn-cancel" onClick={handleCancelEdit} disabled={saving}>Hủy</button>
             <button className="btn-save" onClick={handleSave} disabled={saving}>
               {saving ? "Đang lưu..." : "Lưu thay đổi"}
             </button>
@@ -335,7 +411,7 @@ export default function Profile() {
         {/* Password Change Section */}
         <div className="profile-password-card">
           <div className="profile-card-header">
-            <h3>Bảo mật tài khoản</h3>
+            <h3><FiShield aria-hidden="true" /> Bảo mật tài khoản</h3>
             <button className="btn-password-toggle" onClick={() => { setShowPasswordSection(v => !v); setPwErrors({}); setPwForm({ currentPassword: "", newPassword: "", confirmNewPassword: "" }); }}>
               {showPasswordSection ? "Ẩn" : "Đổi mật khẩu"}
             </button>
@@ -348,17 +424,17 @@ export default function Profile() {
               <div className="password-grid">
                 <div className="profile-field">
                   <label>Mật khẩu hiện tại</label>
-                  <input type="password" value={pwForm.currentPassword} onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })} className={pwErrors.currentPassword ? "error" : ""} placeholder="••••••••" />
+                  <input aria-label="Mật khẩu hiện tại" autoComplete="current-password" type="password" value={pwForm.currentPassword} onChange={e => setPwForm({ ...pwForm, currentPassword: e.target.value })} className={pwErrors.currentPassword ? "error" : ""} placeholder="••••••••" />
                   {pwErrors.currentPassword && <span className="field-error">{pwErrors.currentPassword}</span>}
                 </div>
                 <div className="profile-field">
                   <label>Mật khẩu mới</label>
-                  <input type="password" value={pwForm.newPassword} onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })} className={pwErrors.newPassword ? "error" : ""} placeholder="Ít nhất 6 ký tự" />
+                  <input aria-label="Mật khẩu mới" autoComplete="new-password" type="password" value={pwForm.newPassword} onChange={e => setPwForm({ ...pwForm, newPassword: e.target.value })} className={pwErrors.newPassword ? "error" : ""} placeholder="Ít nhất 6 ký tự" />
                   {pwErrors.newPassword && <span className="field-error">{pwErrors.newPassword}</span>}
                 </div>
                 <div className="profile-field">
                   <label>Xác nhận mật khẩu mới</label>
-                  <input type="password" value={pwForm.confirmNewPassword} onChange={e => setPwForm({ ...pwForm, confirmNewPassword: e.target.value })} className={pwErrors.confirmNewPassword ? "error" : ""} placeholder="Nhập lại mật khẩu mới" />
+                  <input aria-label="Xác nhận mật khẩu mới" autoComplete="new-password" type="password" value={pwForm.confirmNewPassword} onChange={e => setPwForm({ ...pwForm, confirmNewPassword: e.target.value })} className={pwErrors.confirmNewPassword ? "error" : ""} placeholder="Nhập lại mật khẩu mới" />
                   {pwErrors.confirmNewPassword && <span className="field-error">{pwErrors.confirmNewPassword}</span>}
                 </div>
               </div>
