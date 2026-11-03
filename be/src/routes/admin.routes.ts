@@ -15,7 +15,8 @@ import {
 } from '../controllers/admin.controller';
 import {
   adminListWithdrawals,
-  adminCompleteWithdrawal,
+  adminApproveWithdrawal,
+  adminSyncWithdrawal,
   adminRejectWithdrawal,
 } from '../controllers/withdrawal.controller';
 import {
@@ -52,7 +53,8 @@ router.get('/transactions', getAllTransactions);
 
 // Withdrawal request management
 router.get('/withdrawals', adminListWithdrawals);
-router.patch('/withdrawals/:id/complete', adminCompleteWithdrawal);
+router.patch('/withdrawals/:id/approve', adminApproveWithdrawal);
+router.post('/withdrawals/:id/sync', adminSyncWithdrawal);
 router.patch('/withdrawals/:id/reject', adminRejectWithdrawal);
 
 // System feedback management

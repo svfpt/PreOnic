@@ -29,6 +29,7 @@ const paymentService = {
 
   /** Lấy danh sách đơn rút tiền của chính user + số dư khả dụng */
   getWithdrawals: () => api.get('/payment/withdrawals'),
+  getWithdrawalBanks: () => api.get('/payment/withdrawals/banks'),
 
   /** Gửi đơn xin rút tiền */
   createWithdrawal: (data) => api.post('/payment/withdrawals', data),

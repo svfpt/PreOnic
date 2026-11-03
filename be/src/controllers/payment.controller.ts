@@ -22,10 +22,12 @@ export const createTopup = asyncHandler(
     const result = await PaymentService.createTopup(
       req.user!.id,
       Number(amount),
-      description
+      description,
     );
-    res.status(200).json(successResponse(result, 'Tạo liên kết thanh toán thành công'));
-  }
+    res
+      .status(200)
+      .json(successResponse(result, 'Tạo liên kết thanh toán thành công'));
+  },
 );
 
 /**
@@ -34,9 +36,19 @@ export const createTopup = asyncHandler(
 export const verifyTopup = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
     const { orderCode } = req.body;
-    const result = await PaymentService.verifyAndProcess(Number(orderCode));
-    res.status(200).json(successResponse(result, result.success ? 'Nạp tiền thành công' : 'Giao dịch chưa hoàn tất'));
-  }
+    const result = await PaymentService.verifyAndProcess(
+      Number(orderCode),
+      req.user!.id,
+    );
+    res
+      .status(200)
+      .json(
+        successResponse(
+          result,
+          result.success ? 'Nạp tiền thành công' : 'Giao dịch chưa hoàn tất',
+        ),
+      );
+  },
 );
 
 /**
@@ -44,14 +56,9 @@ export const verifyTopup = asyncHandler(
  */
 export const handleWebhook = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
-    await PaymentService.handleWebhook(
-      req.body,
-      typeof req.headers.authorization === 'string'
-        ? req.headers.authorization
-        : undefined
-    );
+    await PaymentService.handleWebhook(req.body);
     res.status(200).json({ success: true });
-  }
+  },
 );
 
 /**
@@ -62,7 +69,7 @@ export const demoTopup = asyncHandler(
     const { amount } = req.body;
     const result = await PaymentService.demoTopup(req.user!.id, Number(amount));
     res.status(200).json(successResponse(result, 'Nạp tiền demo thành công'));
-  }
+  },
 );
 
 /**
@@ -72,7 +79,7 @@ export const getWalletInfo = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
     const result = await PaymentService.getWalletInfo(req.user!.id);
     res.status(200).json(successResponse(result));
-  }
+  },
 );
 
 /**
@@ -87,10 +94,10 @@ export const getTransactions = asyncHandler(
       req.user!.id,
       page,
       limit,
-      type
+      type,
     );
     res.status(200).json(successResponse(result));
-  }
+  },
 );
 
 /**
@@ -101,8 +108,13 @@ export const cancelTopup = asyncHandler(
     const { orderCode } = req.body;
     const result = await PaymentService.cancelTopup(
       Number(orderCode),
-      req.user!.id
+      req.user!.id,
     );
-    res.status(200).json(successResponse(result, 'Đã hủy giao dịch'));
-  }
+    const message = result.success
+      ? 'Giao dịch đã thanh toán thành công'
+      : result.status === 'cancelled'
+        ? 'Đã hủy giao dịch'
+        : 'Giao dịch chưa được hủy';
+    res.status(200).json(successResponse(result, message));
+  },
 );

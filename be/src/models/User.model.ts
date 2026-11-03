@@ -328,6 +328,9 @@ UserSchema.methods.resetLoginAttempts = async function (): Promise<void> {
   await this.save({ validateBeforeSave: false });
 };
 
+// Reject stale document saves after an atomic wallet debit/credit.
+UserSchema.set('optimisticConcurrency', true);
+
 // Indexes for performance
 UserSchema.index({ role: 1 });
 UserSchema.index({ passwordResetToken: 1 });
