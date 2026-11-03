@@ -86,7 +86,11 @@ export const signContract = asyncHandler(
       req.params.id,
       req.user!.id,
       req.user!.role,
-      req.body.otp
+      req.body?.otp,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      }
     );
 
     res.status(200).json({

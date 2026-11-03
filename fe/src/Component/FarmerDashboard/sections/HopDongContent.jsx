@@ -187,30 +187,22 @@ export default function HopDongContent({ searchQuery = "" }) {
                       >
                         <FiCheckCircle size={13} /> Ký hợp đồng
                       </button>
-                      <button
-                        className="fd-btn fd-btn-sm"
-                        disabled={isLoading}
-                        onClick={() => { setRejectModal(c); setRejectReason(""); }}
-                        style={{ background: "#fee2e2", color: "#dc2626", border: "none" }}
-                      >
-                        <FiAlertTriangle size={13} /> Từ chối
-                      </button>
+                      {!c.signedByEnterprise && (
+                        <button
+                          className="fd-btn fd-btn-sm"
+                          disabled={isLoading}
+                          onClick={() => { setRejectModal(c); setRejectReason(""); }}
+                          style={{ background: "#fee2e2", color: "#dc2626", border: "none" }}
+                        >
+                          <FiAlertTriangle size={13} /> Từ chối
+                        </button>
+                      )}
                     </>
                   )}
                   {c.status === "pending" && c.signedByFarmer && (
                     <span style={{ fontSize: 12, color: "#0891b2", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                       <FiCheckCircle size={12} /> Bạn đã ký — Chờ doanh nghiệp ký
                     </span>
-                  )}
-                  {c.status === "active" && (
-                    <button
-                      className="fd-btn fd-btn-sm"
-                      disabled={isLoading}
-                      onClick={() => openDetail(c)}
-                      style={{ background: "#fef3c7", color: "#d97706", border: "none" }}
-                    >
-                      Hủy hợp đồng
-                    </button>
                   )}
                 </div>
               </div>

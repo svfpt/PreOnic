@@ -23,6 +23,17 @@ export interface IContractLocation {
   };
 }
 
+export interface IContractSignature {
+  role: 'farmer' | 'enterprise';
+  userId: mongoose.Types.ObjectId;
+  signerName: string;
+  signerEmail: string;
+  signedAt: Date;
+  contractHash: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 export interface IContract extends Document {
   contractCode: string;
   productId?: mongoose.Types.ObjectId;
@@ -39,6 +50,7 @@ export interface IContract extends Document {
   commissionRate: number;
   depositAmount: number;
   depositPercentage: number;
+  breachCompensationRate: number;
   paymentTerms: '50_50' | '30_70' | '100_delivery' | '100_upfront';
   deliveryDate: Date;
   notes?: string;
@@ -46,8 +58,12 @@ export interface IContract extends Document {
   signedByFarmer: boolean;
   signedByEnterprise: boolean;
   signedAt?: Date;
+  signatures: IContractSignature[];
   signOtpHash?: string;
   signOtpExpiry?: Date;
+  signOtpSentAt?: Date;
+  signOtpAttempts: number;
+  signOtpContractHash?: string;
   completedAt?: Date;
   cancelledAt?: Date;
   cancelReason?: string;
@@ -133,6 +149,13 @@ const ContractSchema = new Schema<IContract>(
       min: [0, 'Deposit percentage must be non-negative'],
       max: [100, 'Deposit percentage cannot exceed 100'],
     },
+    breachCompensationRate: {
+      type: Number,
+      required: true,
+      min: [0.01, 'Compensation rate must be greater than zero'],
+      max: [100, 'Compensation rate cannot exceed 100'],
+      default: 8,
+    },
     paymentTerms: {
       type: String,
       enum: ['50_50', '30_70', '100_delivery', '100_upfront'],
@@ -161,12 +184,43 @@ const ContractSchema = new Schema<IContract>(
     signedAt: {
       type: Date,
     },
+    signatures: {
+      type: [
+        new Schema<IContractSignature>(
+          {
+            role: { type: String, enum: ['farmer', 'enterprise'], required: true },
+            userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+            signerName: { type: String, required: true },
+            signerEmail: { type: String, required: true },
+            signedAt: { type: Date, required: true },
+            contractHash: { type: String, required: true },
+            ipAddress: { type: String },
+            userAgent: { type: String },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     signOtpHash: {
       type: String,
       select: false,
     },
     signOtpExpiry: {
       type: Date,
+      select: false,
+    },
+    signOtpSentAt: {
+      type: Date,
+      select: false,
+    },
+    signOtpAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    signOtpContractHash: {
+      type: String,
       select: false,
     },
     completedAt: {
@@ -213,6 +267,13 @@ const ContractSchema = new Schema<IContract>(
     toJSON: {
       transform: function (_doc: any, ret: any) {
         delete ret.__v;
+        if (Array.isArray(ret.signatures)) {
+          ret.signatures.forEach((signature: Record<string, unknown>) => {
+            delete signature.userId;
+            delete signature.ipAddress;
+            delete signature.userAgent;
+          });
+        }
         return ret;
       },
     },
