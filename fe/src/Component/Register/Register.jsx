@@ -1,3 +1,4 @@
+import EmailOtpForm from "../VerifyEmail/EmailOtpForm";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -57,7 +58,6 @@ const Register = () => {
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(null);
   const [verificationSent, setVerificationSent] = useState(null);
-  const [verificationLink, setVerificationLink] = useState("");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -149,7 +149,6 @@ const Register = () => {
       if (response.success) {
         if (response.requiresVerification) {
           setVerificationSent(response.data?.email || formData.email);
-          setVerificationLink(response.data?.verificationUrl || "");
           toast.success(
             "Vui lòng kiểm tra email để kích hoạt tài khoản.",
             TOAST_DURATION.LONG
@@ -165,6 +164,10 @@ const Register = () => {
         }, 1000);
       }
     } catch (err) {
+      if (err.code === 'EMAIL_NOT_VERIFIED') {
+        navigate('/verify-email?email=' + encodeURIComponent(err.data?.email || formData.email));
+        return;
+      }
       const errorMessage = err.message || "Đăng ký thất bại. Vui lòng thử lại.";
       setError(errorMessage);
       toast.error(errorMessage);
@@ -187,36 +190,7 @@ const Register = () => {
             transition={{ duration: 0.5 }}
           >
             {verificationSent ? (
-              <div className="reg-v2-card reg-v2-verify-card">
-                <div className="reg-v2-verify-icon">
-                  <FiMail />
-                </div>
-                <h3>Hãy xác minh email của bạn</h3>
-                <p>
-                  Chúng tôi đã gửi link kích hoạt đến{" "}
-                  <strong>{verificationSent}</strong>. Vui lòng nhấn link trong
-                  email (kể cả thư mục Spam) trước khi đăng nhập. Nếu email
-                  không đến, bạn có thể dùng link xác minh bên dưới.
-                </p>
-                {verificationLink && (
-                  <a
-                    href={verificationLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="reg-v2-btn-primary reg-v2-btn-link"
-                    style={{ display: "inline-flex", textDecoration: "none", marginBottom: 12 }}
-                  >
-                    Mở link xác minh
-                  </a>
-                )}
-                <button
-                  type="button"
-                  className="reg-v2-btn-primary"
-                  onClick={() => navigate(ROUTES.AUTH)}
-                >
-                  Về trang đăng nhập <FiArrowRight />
-                </button>
-              </div>
+              <div className="reg-v2-card"><EmailOtpForm initialEmail={verificationSent} initiallySent /></div>
             ) : (
               <div className="reg-v2-card">
                 <div className="reg-v2-header">

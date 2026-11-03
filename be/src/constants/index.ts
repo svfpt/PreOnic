@@ -16,8 +16,6 @@ export const REQUEST_LIMITS = {
 } as const;
 
 // ===== AUTH CONSTANTS =====
-export const MAX_LOGIN_ATTEMPTS = 20;
-export const LOCK_DURATION_MS = FIFTEEN_MINUTES_MS;
 export const PASSWORD_MIN_LENGTH = 6;
 
 // ===== COOKIE CONFIG =====

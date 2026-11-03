@@ -18,6 +18,12 @@ export interface IUser extends Document {
   isHidden?: boolean;
   isVerified: boolean;
   farmerApprovalStatus?: 'pending' | 'approved';
+  emailOtpHash?: string;
+  emailOtpExpiresAt?: Date;
+  emailOtpSentAt?: Date;
+  emailOtpAttempts: number;
+  emailOtpWindowAt?: Date;
+  emailOtpSendCount: number;
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
   refreshToken?: string;
@@ -47,14 +53,10 @@ export interface IUser extends Document {
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
   createPasswordResetToken(): string;
-  createEmailVerificationToken(): string;
-  isLocked(): boolean;
   changedPasswordAfter(jwtTimestamp: number): boolean;
   isProfileComplete(): boolean;
 }
 
-const MAX_LOGIN_ATTEMPTS = 20;
-const LOCK_TIME = 15 * 60 * 1000; // 15 minutes
 
 const UserSchema = new Schema<IUser>(
   {
@@ -131,6 +133,12 @@ const UserSchema = new Schema<IUser>(
       type: String,
       select: false,
     },
+    emailOtpHash: { type: String, select: false },
+    emailOtpExpiresAt: { type: Date, select: false },
+    emailOtpSentAt: { type: Date, select: false },
+    emailOtpAttempts: { type: Number, default: 0, select: false },
+    emailOtpWindowAt: { type: Date, select: false },
+    emailOtpSendCount: { type: Number, default: 0, select: false },
     emailVerificationExpires: {
       type: Date,
       select: false,
@@ -264,20 +272,6 @@ UserSchema.methods.createPasswordResetToken = function (): string {
   return resetToken;
 };
 
-// Create email verification token (valid for 24 hours)
-UserSchema.methods.createEmailVerificationToken = function (): string {
-  const verificationToken = crypto.randomBytes(32).toString('hex');
-
-  this.emailVerificationToken = crypto
-    .createHash('sha256')
-    .update(verificationToken)
-    .digest('hex');
-
-  this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-  return verificationToken;
-};
-
 // Profile được coi là đầy đủ khi: có phone + có địa chỉ (tỉnh) + đủ trường theo role.
 UserSchema.methods.isProfileComplete = function (): boolean {
   if (!this.phone || !this.fullName) return false;
@@ -291,14 +285,6 @@ UserSchema.methods.isProfileComplete = function (): boolean {
   return true;
 };
 
-// Check if account is locked due to too many failed login attempts
-UserSchema.methods.isLocked = function (): boolean {
-  if (this.lockUntil && this.lockUntil > new Date()) {
-    return true;
-  }
-  return false;
-};
-
 // Check if password was changed after JWT was issued
 UserSchema.methods.changedPasswordAfter = function (jwtTimestamp: number): boolean {
   if (this.passwordChangedAt) {
@@ -308,32 +294,6 @@ UserSchema.methods.changedPasswordAfter = function (jwtTimestamp: number): boole
     return jwtTimestamp < changedTimestamp;
   }
   return false;
-};
-
-// Increment login attempts
-UserSchema.methods.incrementLoginAttempts = async function (): Promise<void> {
-  // If lock has expired, reset attempts
-  if (this.lockUntil && this.lockUntil < new Date()) {
-    this.loginAttempts = 1;
-    this.lockUntil = undefined;
-  } else {
-    this.loginAttempts += 1;
-
-    // Lock account if max attempts exceeded
-    if (this.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-      this.lockUntil = new Date(Date.now() + LOCK_TIME);
-    }
-  }
-
-  await this.save({ validateBeforeSave: false });
-};
-
-// Reset login attempts on successful login
-UserSchema.methods.resetLoginAttempts = async function (): Promise<void> {
-  this.loginAttempts = 0;
-  this.lockUntil = undefined;
-  this.lastLogin = new Date();
-  await this.save({ validateBeforeSave: false });
 };
 
 // Reject stale document saves after an atomic wallet debit/credit.

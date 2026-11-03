@@ -128,12 +128,13 @@ const authService = {
 
   /**
    * Verify email address with token
-   * @param {string} token - Verification token from URL
+   * @param {{email: string, otp: string}} payload - Email and six-digit code
    * @returns {Promise}
    */
-  verifyEmail: async (token) => {
+  verifyEmail: async ({ email, otp }) => {
     try {
-      const response = await api.get(`/auth/verify-email/${token}`);
+      const response = await api.post('/auth/verify-email', { email, otp });
+      if (response.data.success) persistAuth(response.data.data);
       return response.data;
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Xác minh email thất bại' };
@@ -141,12 +142,12 @@ const authService = {
   },
 
   /**
-   * Resend email verification link
+   * Request a new registration OTP without logging in
    * @returns {Promise}
    */
-  resendVerification: async () => {
+  resendVerification: async (email) => {
     try {
-      const response = await api.post('/auth/resend-verification');
+      const response = await api.post('/auth/resend-verification', { email });
       return response.data;
     } catch (error) {
       throw error.response?.data || { success: false, message: 'Gửi lại email thất bại' };

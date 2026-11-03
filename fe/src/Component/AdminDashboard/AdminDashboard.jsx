@@ -1,3 +1,4 @@
+import UserAvatar from "../common/UserAvatar";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
@@ -95,7 +96,7 @@ export default function AdminDashboard() {
           </div>
           <div className="ad-header-right">
             <div className="ad-user-info">
-              <div className="ad-user-avatar">{(user?.fullName || "AD").slice(0, 2).toUpperCase()}</div>
+              <UserAvatar user={user} className="ad-user-avatar" fallback="AD" />
               <div className="ad-user-text">
                 <span className="ad-user-name">{user?.fullName || "Admin"}</span>
                 <span className="ad-user-role">Quản trị viên</span>
