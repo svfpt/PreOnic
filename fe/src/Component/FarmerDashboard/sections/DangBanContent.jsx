@@ -57,14 +57,10 @@ export default function DangBanContent() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      // Upload first photo to server; get back a real URL (not base64)
-      let imageUrl = undefined;
-      if (photoFiles.length > 0) {
-        try {
-          imageUrl = await productService.uploadImage(photoFiles[0]);
-        } catch {
-          toast.warning("Không thể tải ảnh lên. Sản phẩm sẽ được đăng mà không có ảnh.");
-        }
+      // Keep the selected order and stop submission if any upload fails.
+      const imageUrls = [];
+      for (const file of photoFiles) {
+        imageUrls.push(await productService.uploadImage(file));
       }
 
       const detectCategory = (name) => {
@@ -96,7 +92,7 @@ export default function DangBanContent() {
         progress: 0,
         expectedDate: formData.harvestDate || undefined,
         certifications: certFile ? [certFile.name] : [],
-        ...(imageUrl && { image: imageUrl }),
+        ...(imageUrls.length && { image: imageUrls[0], images: imageUrls }),
       };
       await productService.create(productData);
       toast.success("Đăng bán sản phẩm thành công!");
@@ -348,7 +344,7 @@ export default function DangBanContent() {
                         ))}
                       </div>
                     )}
-                    {photoFiles.length < 3 && (
+                    {photoFiles.length < 10 && (
                       <div className="db2-upload-warn"><FiAlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />Cần ít nhất 3 ảnh để tăng độ tin cậy</div>
                     )}
                   </div>
