@@ -8,6 +8,7 @@ export interface CreateProductBody {
   location: string;
   farm: string;
   image: string;
+  images?: string[];
   priceMin: number;
   priceMax: number;
   unit?: string;
@@ -63,6 +64,7 @@ const PRODUCT_UPDATE_FIELDS: Array<keyof CreateProductBody> = [
   'location',
   'farm',
   'image',
+  'images',
   'priceMin',
   'priceMax',
   'unit',
@@ -206,8 +208,10 @@ export class ProductService {
    * Create a new product (farmer only)
    */
   static async create(body: CreateProductBody, userId: string, userName: string): Promise<IProduct> {
+    const imageData = this.normalizeImages(body);
     const product = await Product.create({
       ...body,
+      ...imageData,
       seller: this.buildSellerData(body, userId, userName),
       createdBy: userId,
     });
@@ -233,6 +237,7 @@ export class ProductService {
     }
 
     const filteredUpdate = this.filterAllowedUpdateData(updateData);
+    Object.assign(filteredUpdate, this.normalizeImages(filteredUpdate));
 
     const updated = await Product.findByIdAndUpdate(productId, filteredUpdate, {
       new: true,
@@ -244,6 +249,15 @@ export class ProductService {
     }
 
     return updated;
+  }
+
+  private static normalizeImages(body: Partial<CreateProductBody>) {
+    if (body.images === undefined) return {};
+    if (!Array.isArray(body.images) || body.images.length > 10 || body.images.some(url => typeof url !== 'string' || !/^https?:\/\//i.test(url))) {
+      throw new AppError('Danh sách ảnh phải chứa tối đa 10 URL hợp lệ', 400);
+    }
+    const images = [...new Set(body.images)];
+    return { images, ...(images.length ? { image: images[0] } : {}) };
   }
 
   /**
