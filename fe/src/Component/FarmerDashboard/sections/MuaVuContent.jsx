@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FiAlertTriangle, FiPackage, FiTrash2 } from "react-icons/fi";
+import { FiAlertTriangle, FiEdit2, FiPackage, FiTrash2 } from "react-icons/fi";
 import { useToast } from "../../../contexts/ToastContext";
 import farmerService from "../../../services/farmer.service";
 import productService from "../../../services/product.service";
@@ -13,6 +13,9 @@ export default function MuaVuContent({ user, onNavigate }) {
   const [myProducts, setMyProducts] = useState(null);
   const [removeModal, setRemoveModal] = useState(null);
   const [removing, setRemoving] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -57,6 +60,59 @@ export default function MuaVuContent({ user, onNavigate }) {
       showToast(err?.message || "Gỡ sản phẩm thất bại.", "error");
     } finally {
       setRemoving(false);
+    }
+  };
+
+  const openEditProduct = (product) => {
+    setEditProduct(product);
+    setEditForm({
+      name: product.name || "",
+      farm: product.farm || "",
+      location: product.location || "",
+      priceMin: product.priceMin ?? "",
+      priceMax: product.priceMax ?? "",
+      unit: product.unit || "kg",
+      expectedDate: /^\d{4}-\d{2}-\d{2}$/.test(product.expectedDate || "") ? product.expectedDate : "",
+      description: product.description || "",
+      region: product.region || "south",
+      category: product.category || "other",
+    });
+  };
+
+  const handleSaveProduct = async (event) => {
+    event.preventDefault();
+    if (!editProduct || !editForm || savingEdit) return;
+
+    const priceMin = Number(editForm.priceMin);
+    const priceMax = Number(editForm.priceMax);
+    if (!editForm.name.trim() || !editForm.location.trim() || !editForm.farm.trim()) {
+      showToast("Vui lòng nhập tên sản phẩm, trang trại và địa điểm.", "error");
+      return;
+    }
+    if (!Number.isFinite(priceMin) || !Number.isFinite(priceMax) || priceMin < 0 || priceMax < priceMin) {
+      showToast("Khoảng giá không hợp lệ.", "error");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      await productService.update(editProduct._id, {
+        ...editForm,
+        name: editForm.name.trim(),
+        farm: editForm.farm.trim(),
+        location: editForm.location.trim(),
+        priceMin,
+        priceMax,
+      });
+      showToast("Đã cập nhật sản phẩm.", "success");
+      setEditProduct(null);
+      setEditForm(null);
+      await loadMyProducts();
+      await loadDashboard();
+    } catch (err) {
+      showToast(err?.response?.data?.message || err?.message || "Cập nhật sản phẩm thất bại.", "error");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -232,6 +288,22 @@ export default function MuaVuContent({ user, onNavigate }) {
                     >
                       <FiTrash2 size={12} /> Gỡ
                     </button>
+                    <button
+                      type="button"
+                      title="Sửa sản phẩm"
+                      aria-label={`Sửa sản phẩm ${p.name}`}
+                      onClick={() => openEditProduct(p)}
+                      style={{
+                        flexShrink: 0, width: 34, height: 34, borderRadius: 8,
+                        border: '1.5px solid #bbf7d0', background: '#f0fdf4',
+                        color: '#15803d', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#dcfce7'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#f0fdf4'; }}
+                    >
+                      <FiEdit2 size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -239,6 +311,86 @@ export default function MuaVuContent({ user, onNavigate }) {
           </div>
         </div>
       </div>
+
+      {editProduct && editForm && (
+        <div
+          onClick={() => !savingEdit && setEditProduct(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9998,
+            background: 'rgba(15,23,42,0.48)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <form
+            onSubmit={handleSaveProduct}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 620, maxHeight: '90vh', overflowY: 'auto',
+              background: '#fff', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.22)',
+            }}
+          >
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid #e5e7eb' }}>
+              <h3 style={{ margin: 0, color: '#14532d', fontSize: 18, fontWeight: 750 }}>Sửa thông tin sản phẩm</h3>
+              <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: 13 }}>Cập nhật nội dung đang hiển thị với doanh nghiệp.</p>
+            </div>
+            <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {[
+                ["name", "Tên sản phẩm", "text"],
+                ["farm", "Trang trại", "text"],
+                ["location", "Địa điểm", "text"],
+                ["expectedDate", "Ngày thu hoạch dự kiến", "date"],
+              ].map(([field, label, type]) => (
+                <label key={field} style={{ display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                  {label}
+                  <input
+                    type={type}
+                    value={editForm[field]}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, [field]: e.target.value }))}
+                    required={field !== "expectedDate"}
+                    style={{ width: '100%', minHeight: 40, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400 }}
+                  />
+                </label>
+              ))}
+              <label style={{ display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                Giá thấp nhất
+                <input type="number" min="0" value={editForm.priceMin} onChange={(e) => setEditForm(prev => ({ ...prev, priceMin: e.target.value }))} required style={{ minHeight: 40, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400 }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                Giá cao nhất
+                <input type="number" min="0" value={editForm.priceMax} onChange={(e) => setEditForm(prev => ({ ...prev, priceMax: e.target.value }))} required style={{ minHeight: 40, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400 }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                Đơn vị giá
+                <select value={editForm.unit} onChange={(e) => setEditForm(prev => ({ ...prev, unit: e.target.value }))} style={{ minHeight: 40, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400 }}>
+                  <option value="kg">kg</option><option value="ta">Tạ</option><option value="tan">Tấn</option>
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                Danh mục
+                <select value={editForm.category} onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))} style={{ minHeight: 40, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400 }}>
+                  <option value="fruit">Trái cây</option><option value="vegetable">Rau củ</option><option value="rice">Lúa gạo</option><option value="coffee">Cà phê</option><option value="tea">Trà</option><option value="spice">Gia vị</option><option value="grain">Ngũ cốc</option><option value="other">Khác</option>
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                Khu vực
+                <select value={editForm.region} onChange={(e) => setEditForm(prev => ({ ...prev, region: e.target.value }))} style={{ minHeight: 40, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400 }}>
+                  <option value="north">Miền Bắc</option><option value="central">Miền Trung</option><option value="south">Miền Nam</option>
+                </select>
+              </label>
+              <label style={{ gridColumn: '1 / -1', display: 'grid', gap: 6, color: '#374151', fontSize: 13, fontWeight: 650 }}>
+                Mô tả sản phẩm
+                <textarea rows="3" value={editForm.description} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} style={{ width: '100%', padding: '9px 10px', border: '1px solid #d1d5db', borderRadius: 8, font: 'inherit', fontWeight: 400, resize: 'vertical' }} />
+              </label>
+            </div>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', background: '#fafafa', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setEditProduct(null)} disabled={savingEdit} style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer' }}>Hủy</button>
+              <button type="submit" disabled={savingEdit} style={{ padding: '9px 20px', borderRadius: 9, border: 0, background: savingEdit ? '#86efac' : '#15803d', color: '#fff', fontWeight: 700, cursor: savingEdit ? 'wait' : 'pointer' }}>
+                {savingEdit ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {removeModal && (
         <div

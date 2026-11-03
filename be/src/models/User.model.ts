@@ -17,6 +17,7 @@ export interface IUser extends Document {
   // Ẩn mềm: account bị ẩn khỏi toàn hệ thống (kể cả admin) nhưng giữ nguyên dữ liệu để khôi phục.
   isHidden?: boolean;
   isVerified: boolean;
+  farmerApprovalStatus?: 'pending' | 'approved';
   emailOtpHash?: string;
   emailOtpExpiresAt?: Date;
   emailOtpSentAt?: Date;
@@ -120,6 +121,13 @@ const UserSchema = new Schema<IUser>(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    farmerApprovalStatus: {
+      type: String,
+      enum: ['pending', 'approved'],
+      default: function (this: IUser) {
+        return this.role === 'farmer' ? 'pending' : undefined;
+      },
     },
     emailVerificationToken: {
       type: String,

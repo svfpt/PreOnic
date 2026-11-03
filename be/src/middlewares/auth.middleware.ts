@@ -94,6 +94,34 @@ export const requireCompleteProfile = async (
   return next();
 };
 
+/** Farmers must be approved by an admin before creating product listings. */
+export const requireApprovedFarmer = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user || req.user.role !== 'farmer') {
+    return next(new AppError('Chỉ tài khoản nông dân mới được đăng bán sản phẩm', 403));
+  }
+
+  const farmer = await User.findById(req.user.id).select('farmerApprovalStatus');
+  if (!farmer) {
+    return next(new AppError('Không tìm thấy người dùng', 404));
+  }
+
+  // Missing status on legacy users is treated as pending so they cannot bypass approval.
+  if (farmer.farmerApprovalStatus !== 'approved') {
+    return res.status(403).json({
+      success: false,
+      status: 'error',
+      code: 'FARMER_APPROVAL_REQUIRED',
+      message: 'Tài khoản nông dân đang chờ quản trị viên duyệt trước khi đăng bán sản phẩm.',
+    });
+  }
+
+  return next();
+};
+
 export const restrictTo = (...roles: string[]) => {
   return (req: AuthRequest, _res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {

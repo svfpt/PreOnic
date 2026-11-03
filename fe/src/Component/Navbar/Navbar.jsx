@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Navbar, Nav, Container, Button } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiArrowRight } from "react-icons/fi";
+import { FiArrowRight, FiGrid } from "react-icons/fi";
 import { LuLeaf } from "react-icons/lu";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -105,6 +105,14 @@ const NavbarComponent = () => {
             <div className="navbar-actions">
               {isLoggedIn ? (
                 <>
+                  {user?.role === "admin" && (
+                    <Button
+                      className="navbar-dashboard-btn admin-dash-btn"
+                      onClick={() => navigate(ROUTES.ADMIN)}
+                    >
+                      Trang Admin <FiGrid className="dash-btn-icon" />
+                    </Button>
+                  )}
                   {user?.role === "farmer" && (
                     <Button
                       className="navbar-dashboard-btn farmer-dash-btn"
