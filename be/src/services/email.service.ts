@@ -2,11 +2,33 @@
 // Trách nhiệm duy nhất: cấu hình SMTP, gửi email, render template HTML.
 
 import { createLogger } from '../utils/logger';
+import { AppError } from '../middlewares/error.middleware';
 
 const log = createLogger('Email');
 
+export function getRegistrationEmailConfig(): SmtpConfig {
+  const smtp = getSmtpConfig(true);
+  if (process.env.BREVO_API_KEY?.trim()) {
+    const from = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || '';
+    const sender = parseFrom(from, '');
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender.email)) {
+      return smtp || { host: '', port: 587, secure: false, user: sender.email, pass: '', from };
+    }
+  } else if (smtp) return smtp;
+  throw new AppError('Máy chủ chưa cấu hình gửi email xác thực. Vui lòng liên hệ quản trị viên.', 503);
+}
+
+export async function sendRegistrationOtp(email: string, fullName: string, otp: string): Promise<void> {
+  const name = fullName.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+  await sendEmail(getRegistrationEmailConfig(), email, 'PreOnic — Mã xác thực email',
+    `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><h2>Xác thực email PreOnic</h2>
+    <p>Xin chào ${name}, mã xác thực đăng ký của bạn là:</p>
+    <p style="font-size:32px;letter-spacing:8px;font-weight:bold">${otp}</p>
+    <p>Mã có hiệu lực trong 10 phút. Không chia sẻ mã này với người khác.</p>
+    <p>Nếu bạn không đăng ký tài khoản, hãy bỏ qua email này.</p></div>`);
+}
+
 const DEFAULT_SMTP_PORT = 587;
-const FRONTEND_URL_FALLBACK = 'http://localhost:3000';
 
 export type SmtpConfig = {
   host: string;
@@ -105,8 +127,8 @@ async function sendViaBrevo(config: SmtpConfig, to: string, subject: string, htm
   });
 
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Brevo API ${res.status}: ${detail}`);
+    // Provider responses can contain the submitted email body; never log it.
+    throw new Error(`Brevo API ${res.status}`);
   }
 }
 
@@ -119,7 +141,7 @@ export async function sendEmail(config: SmtpConfig, to: string, subject: string,
       log.info(`Brevo: gửi mail tới ${to} THÀNH CÔNG.`);
       return;
     } catch (err: any) {
-      log.error(`Brevo gửi mail tới ${to} thất bại: ${err?.message}`, err);
+      log.error('Brevo gửi email thất bại');
       throw err;
     }
   }
@@ -136,54 +158,21 @@ export async function sendEmail(config: SmtpConfig, to: string, subject: string,
     const alreadyTried465 = config.port === 465 && config.secure;
 
     if (isConnIssue && !alreadyTried465) {
-      log.warn(`SMTP cổng ${config.port} lỗi (${code}: ${err?.message}). Thử lại qua cổng 465 (SSL)...`);
+      log.warn(`SMTP cổng ${config.port} lỗi kết nối. Thử lại qua cổng 465 (SSL)...`);
       try {
         await sendVia(config, 465, true, to, subject, html);
         log.info(`SMTP: gửi mail tới ${to} THÀNH CÔNG qua cổng 465 (fallback).`);
         return;
       } catch (err2: any) {
         log.error(
-          `SMTP cổng 465 cũng lỗi (${err2?.code}: ${err2?.message}). ` +
-          `Nhiều khả năng host (Render Free) đang CHẶN toàn bộ cổng SMTP — cần chuyển sang gửi mail qua HTTP API.`,
-          err2
+          'SMTP cổng 465 cũng lỗi. Kiểm tra cấu hình SMTP hoặc dùng HTTP API.'
         );
         throw err2;
       }
     }
-    log.error(`SMTP gửi mail tới ${to} thất bại (${code}: ${err?.message}).`, err);
+    log.error('SMTP gửi email thất bại. Kiểm tra cấu hình nhà cung cấp.');
     throw err;
   }
-}
-
-function buildVerificationEmailHtml(fullName: string, verifyUrl: string): string {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0;">PreOnic</h1>
-        <p style="margin: 5px 0 0;">Nền tảng kết nối nông nghiệp bền vững</p>
-      </div>
-      <div style="padding: 32px; background: #f9f9f9;">
-        <h2 style="color: #333;">Xin chào ${fullName}!</h2>
-        <p style="color: #555; line-height: 1.6;">
-          Cảm ơn bạn đã đăng ký tài khoản PreOnic. Vui lòng nhấn nút bên dưới để xác minh địa chỉ email của bạn.
-        </p>
-        <div style="text-align: center; margin: 28px 0;">
-          <a href="${verifyUrl}"
-            style="background: #16a34a; color: white; padding: 14px 32px; border-radius: 8px;
-                   text-decoration: none; font-weight: bold; font-size: 16px;">
-            Xác minh email
-          </a>
-        </div>
-        <p style="color: #777; font-size: 13px;">
-          Nếu nút không hoạt động, hãy copy đường link này vào trình duyệt:<br/>
-          <a href="${verifyUrl}" style="color: #16a34a;">${verifyUrl}</a>
-        </p>
-        <p style="color: #999; font-size: 12px; margin-top: 20px;">
-          Link có hiệu lực trong 24 giờ. Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.
-        </p>
-      </div>
-    </div>
-  `;
 }
 
 export function buildPasswordResetEmailHtml(fullName: string, resetUrl: string): string {
@@ -207,39 +196,6 @@ export function buildPasswordResetEmailHtml(fullName: string, resetUrl: string):
       </div>
     </div>
   `;
-}
-
-export function buildVerificationUrl(token: string): string {
-  return `${process.env.FRONTEND_URL || FRONTEND_URL_FALLBACK}/verify-email?token=${token}`;
-}
-
-// Gửi email xác minh tài khoản. Nếu chưa cấu hình SMTP hoặc SMTP lỗi, vẫn trả về URL
-// để dev/test có thể mở trực tiếp link xác minh và kiểm tra luồng mà không cần SMTP thật.
-export async function sendVerificationEmail(email: string, fullName: string, token: string): Promise<string> {
-  const verifyUrl = buildVerificationUrl(token);
-  const smtpConfig = getSmtpConfig(true);
-
-  if (!smtpConfig) {
-    log.warn(
-      `[SMTP] Thiếu cấu hình SMTP. Đối với Gmail, hãy dùng App Password 16 ký tự (không có khoảng trắng) trong SMTP_PASS. ` +
-      `Verification URL for ${email}: ${verifyUrl}`
-    );
-    return verifyUrl;
-  }
-
-  try {
-    await sendEmail(
-      smtpConfig,
-      email,
-      '[PreOnic] Xác minh địa chỉ email của bạn',
-      buildVerificationEmailHtml(fullName, verifyUrl)
-    );
-    return verifyUrl;
-  } catch (err: any) {
-    log.error(`Gửi email xác minh cho ${email} thất bại: ${err?.message || String(err)}`, err);
-    log.warn(`Verification URL fallback for ${email}: ${verifyUrl}`);
-    return verifyUrl;
-  }
 }
 
 export async function sendSignOtpEmail(email: string, fullName: string, otp: string, contractCode: string): Promise<void> {
