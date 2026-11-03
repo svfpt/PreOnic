@@ -1,3 +1,4 @@
+import UserAvatar from "../common/UserAvatar";
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
@@ -97,7 +98,7 @@ export default function EnterpriseDashboard() {
                 <p className="user-name">{user?.fullName || "Doanh nghiệp"}</p>
                 <p className="user-role">Quản lý thu mua</p>
               </div>
-              <div className="user-avatar">{(user?.fullName || "DN").slice(0, 2).toUpperCase()}</div>
+              <UserAvatar user={user} className="user-avatar" fallback="DN" />
             </div>
           </div>
         </header>
