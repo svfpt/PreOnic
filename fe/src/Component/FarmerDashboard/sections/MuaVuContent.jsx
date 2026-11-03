@@ -158,8 +158,8 @@ export default function MuaVuContent({ user, onNavigate }) {
               </thead>
               <tbody>
                 {recentContracts.length > 0 ? recentContracts.map(c => (
-                  <tr key={c._id} onMouseEnter={e => e.currentTarget.style.background='#f9fbf9'} onMouseLeave={e => e.currentTarget.style.background=''}>
-                    <td style={{ padding: '12px 18px', fontSize: 13 }}>{c.enterpriseId?.fullName || c.enterpriseId?.companyName || "Doanh nghiệp"}</td>
+                  <tr key={c.id || c._id} onMouseEnter={e => e.currentTarget.style.background='#f9fbf9'} onMouseLeave={e => e.currentTarget.style.background=''}>
+                    <td style={{ padding: '12px 18px', fontSize: 13 }}>{c.enterpriseName || c.enterpriseId?.fullName || c.enterpriseId?.companyName || "Doanh nghiệp"}</td>
                     <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>{c.productName}</td>
                     <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 700, color: '#111812' }}>{formatMoney(c.totalValue)}</td>
                     <td style={{ padding: '12px 18px', fontSize: 13, color: '#6b7280' }}>{formatDate(c.deliveryDate)}</td>
