@@ -12,7 +12,6 @@ import { ROUTES, TOAST_DURATION, REGIONS } from "../../constants";
 import { formatPrice, formatPriceRange } from "../../data/products";
 import productService, { resolveImageUrl } from "../../services/product.service";
 import "./ProductDetail.css";
-import ProductGallery from "./ProductGallery";
 
 // Role guard helper
 const ROLE = { GUEST: "guest", FARMER: "farmer", ENTERPRISE: "enterprise" };
@@ -20,7 +19,6 @@ const ROLE = { GUEST: "guest", FARMER: "farmer", ENTERPRISE: "enterprise" };
 // Fill defaults for fields that API products may not have
 const toUiProductDetail = (p) => ({
   id: p._id || p.id,
-  createdBy: p.createdBy?._id || p.createdBy,
   name: p.name,
   location: p.location || "Việt Nam",
   farm: p.farm || "-",
@@ -35,7 +33,6 @@ const toUiProductDetail = (p) => ({
   rating: p.rating || 4.5,
   reviewCount: p.reviewCount || 0,
   image: resolveImageUrl(p.image) || "/images/products/default.jpg",
-  images: Array.isArray(p.images) ? p.images : [],
   badge: p.badge || null,
   expectedDate: p.expectedDate || "Quanh năm",
   certifications: p.certifications || [],
@@ -226,13 +223,12 @@ const ProductDetail = () => {
         <div className="pd-main">
           {/* LEFT: IMAGE + INFO */}
           <div className="pd-left">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              <ProductGallery key={product.id} images={product.images} image={product.image} name={product.name}>
+            <motion.div className="pd-image-wrap" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+              <img src={product.image} alt={product.name} />
               {product.badge && <span className="pd-badge">{product.badge}</span>}
               <span className="pd-region-tag" style={{ background: region.color }}>
                 {region.icon} {region.label}
               </span>
-              </ProductGallery>
             </motion.div>
 
             {/* DESCRIPTION */}

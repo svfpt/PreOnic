@@ -15,7 +15,6 @@ export interface IProduct extends Document {
   location: string;
   farm: string;
   image: string;
-  images: string[];
   priceMin: number;
   priceMax: number;
   unit: string;
@@ -91,11 +90,6 @@ const ProductSchema = new Schema<IProduct>(
     image: {
       type: String,
       default: 'https://images.unsplash.com/photo-1560493676-04071c5f467b?w=600',
-    },
-    images: {
-      type: [String],
-      default: [],
-      validate: { validator: (images: string[]) => images.length <= 10, message: 'Tối đa 10 ảnh sản phẩm' },
     },
     priceMin: {
       type: Number,
