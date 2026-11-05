@@ -53,10 +53,11 @@ export const register = asyncHandler(
         status: 'success',
         requiresVerification: true,
         message:
-          'Tài khoản đã được tạo. Vui lòng kiểm tra email để nhấn link kích hoạt trước khi đăng nhập.',
+          'Tài khoản đã được tạo. Vui lòng nhập OTP được gửi qua email để xác thực tài khoản.',
         data: {
           email: result.email,
-          verificationUrl: result.verificationUrl,
+          expiresInSeconds: result.expiresInSeconds,
+          resendAfterSeconds: result.resendAfterSeconds,
         },
       });
     }
@@ -257,35 +258,30 @@ export const googleLogin = asyncHandler(
 
 /**
  * @desc    Verify email address
- * @route   GET /api/v1/auth/verify-email/:token
+ * @route   POST /api/v1/auth/verify-email
  * @access  Public
  */
 export const verifyEmail = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
-    const { token } = req.params;
-    await AuthService.verifyEmail(token);
-
-    res.status(200).json({
-      success: true,
-      status: 'success',
-      message: 'Email đã được xác minh thành công! Bạn có thể đăng nhập ngay.',
-    });
+    const { user, tokens } = await AuthService.verifyEmail(req.body.email, req.body.otp);
+    sendAuthResponse(res, 200, 'Xác thực email và đăng nhập thành công!', user, tokens);
   }
 );
 
 /**
- * @desc    Resend email verification link
+ * @desc    Request a new email OTP
  * @route   POST /api/v1/auth/resend-verification
- * @access  Private
+ * @access  Public
  */
 export const resendVerificationEmail = asyncHandler(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
-    const result = await AuthService.resendVerificationEmail(req.user!.id);
+    const result = await AuthService.resendVerificationEmail(req.body.email);
 
     res.status(200).json({
       success: true,
       status: 'success',
-      message: result.message,
+      message: 'Nếu email cần xác thực và chưa vượt giới hạn gửi, OTP sẽ được gửi đến hộp thư. Kiểm tra cả thư mục Spam.',
+      data: result,
     });
   }
 );

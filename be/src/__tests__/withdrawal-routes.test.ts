@@ -42,8 +42,8 @@ describe('Withdrawal route authorization and workflow', () => {
     process.env.PAYOS_PAYOUT_API_KEY = 'test-api';
     process.env.PAYOS_PAYOUT_CHECKSUM_KEY = 'test-checksum';
     const [farmer, admin] = await User.create([
-      { email: 'farmer-route@test.local', password: 'password123', role: 'farmer', firstName: 'Test', lastName: 'Farmer', fullName: 'Test Farmer', virtualBalance: 50000 },
-      { email: 'admin-route@test.local', password: 'password123', role: 'admin', firstName: 'Test', lastName: 'Admin', fullName: 'Test Admin' },
+      { email: 'farmer-route@test.local', password: 'password123', isVerified: true, role: 'farmer', firstName: 'Test', lastName: 'Farmer', fullName: 'Test Farmer', virtualBalance: 50000 },
+      { email: 'admin-route@test.local', password: 'password123', isVerified: true, role: 'admin', firstName: 'Test', lastName: 'Admin', fullName: 'Test Admin' },
     ]);
     farmerToken = jwt.sign({ id: String(farmer._id) }, process.env.JWT_SECRET);
     adminToken = jwt.sign({ id: String(admin._id) }, process.env.JWT_SECRET);
@@ -63,6 +63,13 @@ describe('Withdrawal route authorization and workflow', () => {
     try { result = JSON.parse(raw); } catch { result = {}; }
     return { status: response.status, body: result };
   }
+
+  it('does not expose demo top-ups or change the wallet through the removed endpoint', async () => {
+    const result = await request('/payment/demo-topup', farmerToken, { amount: 10000 }, 'POST');
+    expect(result.status).toBe(404);
+    expect((await request('/payment/withdrawals', farmerToken)).body.data.available).toBe(50000);
+    expect(create).not.toHaveBeenCalled();
+  });
 
   it('requires login and prevents users from approving withdrawals', async () => {
     expect((await request('/payment/withdrawals')).status).toBe(401);

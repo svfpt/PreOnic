@@ -26,6 +26,11 @@ const adminService = {
     return response.data;
   },
 
+  approveFarmer: async (id) => {
+    const response = await api.patch(`/admin/users/${id}/approve-farmer`);
+    return response.data;
+  },
+
   deleteUser: async (id) => {
     const response = await api.delete(`/admin/users/${id}`);
     return response.data;

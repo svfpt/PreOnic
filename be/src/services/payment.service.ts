@@ -327,65 +327,6 @@ export class PaymentService {
   }
 
   /**
-   * Demo top-up (instant, no real payment)
-   */
-  static async demoTopup(userId: string, amount: number) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new AppError(
-        'Nạp tiền demo chỉ khả dụng trong môi trường thử nghiệm',
-        403,
-      );
-    }
-
-    const user = await User.findById(userId);
-    if (!user) throw new AppError('Người dùng không tồn tại', 404);
-
-    if (
-      !Number.isSafeInteger(amount) ||
-      amount < PAYMENT_LIMITS.MIN_DEMO_TOPUP_VND ||
-      amount > PAYMENT_LIMITS.MAX_TOPUP_VND
-    ) {
-      throw new AppError(
-        `Số tiền nạp demo phải là số nguyên từ ${PAYMENT_LIMITS.MIN_DEMO_TOPUP_VND.toLocaleString('vi-VN')} đến ${PAYMENT_LIMITS.MAX_TOPUP_VND.toLocaleString('vi-VN')} VND`,
-        400,
-      );
-    }
-
-    const session = await mongoose.startSession();
-    let result;
-    try {
-      await session.withTransaction(async () => {
-        const wallet = await User.findByIdAndUpdate(
-          userId,
-          { $inc: { virtualBalance: amount, __v: 1 } },
-          { new: true, session },
-        );
-        if (!wallet) throw new AppError('Người dùng không tồn tại', 404);
-        const [transaction] = await PaymentTransaction.create(
-          [
-            {
-              userId,
-              type: 'topup',
-              amount,
-              status: 'completed',
-              paymentMethod: 'demo',
-              description: `[Demo] Nạp ${amount.toLocaleString('vi-VN')} VND`,
-              balanceBefore: wallet.virtualBalance - amount,
-              balanceAfter: wallet.virtualBalance,
-              completedAt: new Date(),
-            },
-          ],
-          { session },
-        );
-        result = { transaction, newBalance: wallet.virtualBalance };
-      });
-    } finally {
-      await session.endSession();
-    }
-    return result!;
-  }
-
-  /**
    * Get transaction history for a user
    */
   static async getTransactions(

@@ -1,3 +1,4 @@
+import UserAvatar from "../common/UserAvatar";
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
@@ -101,7 +102,7 @@ export default function FarmerDashboard() {
                 <p className="fd-user-name">{user?.fullName || "Nông dân"}</p>
                 <p className="fd-user-role">Quản lý nông trại</p>
               </div>
-              <div className="fd-user-avatar">{(user?.fullName || "ND").slice(0, 2).toUpperCase()}</div>
+              <UserAvatar user={user} className="fd-user-avatar" fallback="ND" />
             </div>
           </div>
         </header>

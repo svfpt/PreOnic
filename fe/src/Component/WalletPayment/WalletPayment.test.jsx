@@ -10,7 +10,7 @@ jest.mock('../../hooks/useApiData', () => ({ formatMoney: amount => `${(amount ?
 jest.mock('./WithdrawTab', () => () => null);
 jest.mock('../../services/payment.service', () => ({
   getWallet: jest.fn(), getTransactions: jest.fn(), createTopup: jest.fn(),
-  verifyTopup: jest.fn(), cancelTopup: jest.fn(), demoTopup: jest.fn(),
+  verifyTopup: jest.fn(), cancelTopup: jest.fn(),
 }));
 const originalLocation = window.location;
 const mockAssign = jest.fn();
@@ -37,10 +37,12 @@ test('creating a payment redirects to payOS immediately and prevents repeated su
   let finish;
   paymentService.createTopup.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
   await openTopup();
-  const button = screen.getByRole('button', { name: /Tạo lệnh payOS/ });
+  const button = screen.getByRole('button', { name: /Nạp tiền qua payOS/ });
   fireEvent.click(button);
   fireEvent.click(button);
   expect(paymentService.createTopup).toHaveBeenCalledTimes(1);
+  expect(paymentService.createTopup).toHaveBeenCalledWith(10000);
+  expect(screen.queryByRole('button', { name: /Đang chuyển đến payOS/ })).not.toBeNull();
   finish({ data: { data: { checkoutUrl: 'https://pay.payos.vn/web/test-link' } } });
   await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('https://pay.payos.vn/web/test-link'));
 });
@@ -49,17 +51,27 @@ test('a failed creation stays in the wallet and allows retry', async () => {
   paymentService.createTopup.mockRejectedValueOnce(new Error('offline'))
     .mockResolvedValue({ data: { data: { checkoutUrl: 'https://pay.payos.vn/web/retry' } } });
   await openTopup();
-  fireEvent.click(screen.getByRole('button', { name: /Tạo lệnh payOS/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Nạp tiền qua payOS/ }));
   await waitFor(() => expect(mockError).toHaveBeenCalled());
   expect(mockAssign).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: /Tạo lệnh payOS/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Nạp tiền qua payOS/ }));
   await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('https://pay.payos.vn/web/retry'));
 });
 
 test('an amount above the payment limit cannot create a link', async () => {
   await openTopup();
   fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '500000001' } });
-  const button = screen.getByRole('button', { name: /Tạo lệnh payOS/ });
+  const button = screen.getByRole('button', { name: /Nạp tiền qua payOS/ });
+  expect(button.disabled).toBe(true);
+  fireEvent.click(button);
+  expect(paymentService.createTopup).not.toHaveBeenCalled();
+});
+
+test('only payOS is available and amounts below its minimum cannot be submitted', async () => {
+  await openTopup();
+  expect(screen.queryByText(/demo/i)).toBeNull();
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '1000' } });
+  const button = screen.getByRole('button', { name: /Nạp tiền qua payOS/ });
   expect(button.disabled).toBe(true);
   fireEvent.click(button);
   expect(paymentService.createTopup).not.toHaveBeenCalled();

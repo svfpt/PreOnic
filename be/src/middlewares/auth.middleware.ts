@@ -39,7 +39,7 @@ export const protect = async (
     // Luồng bảo vệ luôn kiểm tra lại người dùng trong DB để chặn tài khoản đã bị vô hiệu hóa.
     const decoded = jwt.verify(token, getJwtSecret()) as JwtUserPayload;
     const activeUser = await User.findById(decoded.id).select(
-      'email role fullName isActive isHidden'
+      'email role fullName isActive isHidden isVerified'
     );
 
     if (!activeUser || !activeUser.isActive || activeUser.isHidden) {
@@ -47,6 +47,8 @@ export const protect = async (
         new AppError('Tài khoản không còn khả dụng hoặc đã bị vô hiệu hóa', 401)
       );
     }
+
+    if (!activeUser.isVerified) return next(new AppError('Vui lòng xác thực email bằng OTP.', 403, 'EMAIL_NOT_VERIFIED', { email: activeUser.email }));
 
     req.user = {
       id: String(activeUser._id),
@@ -89,6 +91,34 @@ export const requireCompleteProfile = async (
       message: 'Vui lòng cập nhật đầy đủ hồ sơ cá nhân trước khi thực hiện thao tác này.',
     });
   }
+  return next();
+};
+
+/** Farmers must be approved by an admin before creating product listings. */
+export const requireApprovedFarmer = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user || req.user.role !== 'farmer') {
+    return next(new AppError('Chỉ tài khoản nông dân mới được đăng bán sản phẩm', 403));
+  }
+
+  const farmer = await User.findById(req.user.id).select('farmerApprovalStatus');
+  if (!farmer) {
+    return next(new AppError('Không tìm thấy người dùng', 404));
+  }
+
+  // Missing status on legacy users is treated as pending so they cannot bypass approval.
+  if (farmer.farmerApprovalStatus !== 'approved') {
+    return res.status(403).json({
+      success: false,
+      status: 'error',
+      code: 'FARMER_APPROVAL_REQUIRED',
+      message: 'Tài khoản nông dân đang chờ quản trị viên duyệt trước khi đăng bán sản phẩm.',
+    });
+  }
+
   return next();
 };
 

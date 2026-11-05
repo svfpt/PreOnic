@@ -23,6 +23,8 @@ import {
   validateUpdatePassword,
 } from '../middlewares/validation.middleware';
 import {
+  otpVerifyLimiter,
+  otpSendLimiter,
   authLimiter,
   registerLimiter,
   passwordResetLimiter,
@@ -106,17 +108,20 @@ router.put('/update-profile', protect, updateProfile);
 
 /**
  * @route   GET /api/v1/auth/verify-email/:token
- * @desc    Verify email address with token from verification link
+ * @desc    Retire legacy links; verify email with POST and a one-time code
  * @access  Public
  */
-router.get('/verify-email/:token', verifyEmail);
+router.get('/verify-email/:token', (_req, res) => {
+  res.status(410).json({ success: false, message: 'Link xác thực cũ đã ngừng sử dụng. Vui lòng yêu cầu OTP mới tại trang xác thực email.' });
+});
+router.post('/verify-email', otpVerifyLimiter, verifyEmail);
 
 /**
  * @route   POST /api/v1/auth/resend-verification
- * @desc    Resend email verification link
- * @access  Private
+ * @desc    Request an email OTP without logging in
+ * @access  Public
  */
-router.post('/resend-verification', protect, resendVerificationEmail);
+router.post('/resend-verification', otpSendLimiter, resendVerificationEmail);
 
 /**
  * @route   DELETE /api/v1/auth/deactivate

@@ -62,17 +62,6 @@ export const handleWebhook = asyncHandler(
 );
 
 /**
- * POST /payment/demo-topup — Demo instant top-up (no real payment)
- */
-export const demoTopup = asyncHandler(
-  async (req: AuthRequest, res: Response, _next: NextFunction) => {
-    const { amount } = req.body;
-    const result = await PaymentService.demoTopup(req.user!.id, Number(amount));
-    res.status(200).json(successResponse(result, 'Nạp tiền demo thành công'));
-  },
-);
-
-/**
  * GET /payment/wallet — Get wallet info + stats
  */
 export const getWalletInfo = asyncHandler(

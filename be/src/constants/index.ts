@@ -16,8 +16,6 @@ export const REQUEST_LIMITS = {
 } as const;
 
 // ===== AUTH CONSTANTS =====
-export const MAX_LOGIN_ATTEMPTS = 20;
-export const LOCK_DURATION_MS = FIFTEEN_MINUTES_MS;
 export const PASSWORD_MIN_LENGTH = 6;
 
 // ===== COOKIE CONFIG =====
@@ -73,7 +71,6 @@ export const PRODUCT_CONFIG = {
 // ===== PAYMENT LIMITS =====
 export const PAYMENT_LIMITS = {
   MIN_TOPUP_VND: 10_000,
-  MIN_DEMO_TOPUP_VND: 1_000,
   MAX_TOPUP_VND: 500_000_000,
 } as const;
 

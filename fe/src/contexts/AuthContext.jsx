@@ -38,8 +38,8 @@ export const AuthProvider = ({ children }) => {
     return response;
   }, []);
 
-  // Register: chỉ tạo tài khoản, KHÔNG tự đăng nhập.
-  // User sau khi đăng ký phải tự đăng nhập lại → không setUser ở đây.
+  // Register chỉ tạo tài khoản; phiên đăng nhập được tạo sau khi xác thực OTP.
+  // Form OTP đồng bộ user sau khi backend xác thực thành công.
   const register = useCallback(async (data) => {
     return authService.register(data);
   }, []);
