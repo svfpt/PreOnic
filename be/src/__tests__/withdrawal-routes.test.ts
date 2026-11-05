@@ -64,6 +64,13 @@ describe('Withdrawal route authorization and workflow', () => {
     return { status: response.status, body: result };
   }
 
+  it('does not expose demo top-ups or change the wallet through the removed endpoint', async () => {
+    const result = await request('/payment/demo-topup', farmerToken, { amount: 10000 }, 'POST');
+    expect(result.status).toBe(404);
+    expect((await request('/payment/withdrawals', farmerToken)).body.data.available).toBe(50000);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('requires login and prevents users from approving withdrawals', async () => {
     expect((await request('/payment/withdrawals')).status).toBe(401);
     expect((await request('/admin/withdrawals', farmerToken)).status).toBe(403);

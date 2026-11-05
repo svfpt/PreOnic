@@ -71,7 +71,6 @@ export const PRODUCT_CONFIG = {
 // ===== PAYMENT LIMITS =====
 export const PAYMENT_LIMITS = {
   MIN_TOPUP_VND: 10_000,
-  MIN_DEMO_TOPUP_VND: 1_000,
   MAX_TOPUP_VND: 500_000_000,
 } as const;
 

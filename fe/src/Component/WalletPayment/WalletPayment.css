@@ -596,9 +596,11 @@
 }
 .wlt-balance-preview strong { color: #15803d; font-size: 15px; }
 
+.wlt-amount-hint { margin: 10px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+
 /* Topup buttons */
 .wlt-topup-btns { display: flex; gap: 12px; margin-top: 22px; }
-.wlt-btn-gateway, .wlt-btn-demo {
+.wlt-btn-gateway {
   flex: 1;
   display: flex; align-items: center; justify-content: center;
   gap: 8px;
@@ -614,19 +616,7 @@
   color: #fff;
 }
 .wlt-btn-gateway:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(15,81,50,0.3); }
-.wlt-btn-demo {
-  background: linear-gradient(135deg, #1e40af, #3b82f6);
-  color: #fff;
-}
-.wlt-demo-notice {
-  flex-basis: 100%;
-  margin: 0;
-  color: #64748b;
-  font-size: 12px;
-  text-align: center;
-}
-.wlt-btn-demo:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30,64,175,0.3); }
-.wlt-btn-gateway:disabled, .wlt-btn-demo:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.wlt-btn-gateway:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .wlt-bspin {
   width: 18px; height: 18px;
   border: 2px solid rgba(255,255,255,0.3);
@@ -643,7 +633,6 @@
   border-radius: 12px;
 }
 .wlt-info-gateway { background: #f0fdf4; }
-.wlt-info-demo  { background: #eff6ff; }
 .wlt-info-row-icon { font-size: 22px; flex-shrink: 0; padding-top: 1px; }
 .wlt-info-row strong { font-size: 13px; color: #111827; display: block; margin-bottom: 4px; }
 .wlt-info-row p { font-size: 12px; color: #6b7280; margin: 0; line-height: 1.5; }

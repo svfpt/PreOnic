@@ -8,8 +8,6 @@ import WithdrawTab from "./WithdrawTab";
 import "./WalletPayment.css";
 
 const TRANSACTION_PAGE_SIZE = 20;
-const DEMO_MIN_TOPUP = 1000;
-const DEMO_ENABLED = process.env.NODE_ENV !== "production";
 
 const verificationState = (data) => {
   if (data?.success) return "success";
@@ -38,7 +36,7 @@ const GUIDE_STEPS = [
     n: "1",
     icon: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ width: 20, height: 20 }}><rect x="3" y="2" width="14" height="16" rx="2" /><path d="M7 7h6M7 10h6M7 13h4" strokeLinecap="round" /></svg>,
     title: "Nạp tiền vào ví",
-    desc: "Tạo lệnh payOS, chuyển khoản đúng nội dung và chờ hệ thống tự cộng ví qua webhook",
+    desc: "Thanh toán, chuyển khoản đúng nội dung và chờ hệ thống tự cộng ví qua webhook",
   },
   {
     n: "2",
@@ -182,36 +180,6 @@ export default function WalletPayment({ role }) {
       window.location.assign(topupData.checkoutUrl);
     } catch (err) {
       toastError(err.response?.data?.message || "Không thể tạo yêu cầu nạp tiền qua payOS");
-    } finally {
-      topupInFlight.current = false;
-      setTopupLoading(false);
-    }
-  };
-
-  const handleDemoTopup = async () => {
-    if (topupInFlight.current) return;
-    const amount = Number(topupAmount);
-    if (!Number.isSafeInteger(amount) || amount < DEMO_MIN_TOPUP || amount > GATEWAY_MAX_TOPUP) {
-      toastError("Số tiền nạp demo phải là số nguyên từ 1.000 đến 500.000.000 VND");
-      return;
-    }
-
-    topupInFlight.current = true;
-    setTopupLoading(true);
-    try {
-      const res = await paymentService.demoTopup(amount);
-      if (!res.data?.data) {
-        toastError("Không nhận được kết quả nạp demo từ máy chủ");
-        return;
-      }
-      toastSuccess(`Nạp demo thành công +${formatMoney(amount)}! Đây là tiền ảo, không có giá trị thanh toán thực tế.`);
-      setTopupAmount("");
-      setTxFilter("topup");
-      setTxPage(1);
-      setActiveTab("history");
-      await refreshWalletData(1, "topup");
-    } catch (err) {
-      toastError(err.response?.data?.message || "Lỗi nạp demo");
     } finally {
       topupInFlight.current = false;
       setTopupLoading(false);
@@ -502,11 +470,15 @@ export default function WalletPayment({ role }) {
                   placeholder="0"
                   value={topupAmount}
                   onChange={(e) => setTopupAmount(e.target.value)}
-                  min="1000"
+                  min={GATEWAY_MIN_TOPUP}
+                  step="1"
+                  aria-label="Số tiền nạp"
+                  aria-describedby="topup-amount-hint"
                   max={GATEWAY_MAX_TOPUP}
                 />
                 <span className="wlt-amount-suffix">VND</span>
               </div>
+              <p id="topup-amount-hint" className="wlt-amount-hint">Từ 10.000 đến 500.000.000 VND. Bạn sẽ được chuyển đến payOS để thanh toán.</p>
               {topupAmount && Number(topupAmount) > 0 && (
                 <div className="wlt-balance-preview">
                   <span>Số dư sau nạp</span>
@@ -518,21 +490,13 @@ export default function WalletPayment({ role }) {
               <div className="wlt-topup-btns">
                 <button
                   className="wlt-btn-gateway"
+                  type="button"
+                  aria-busy={topupLoading}
                   onClick={handleGatewayTopup}
                   disabled={topupLoading || !Number.isSafeInteger(Number(topupAmount)) || Number(topupAmount) < GATEWAY_MIN_TOPUP || Number(topupAmount) > GATEWAY_MAX_TOPUP}
                 >
-                  {topupLoading ? <span className="wlt-bspin" /> : <><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ width: 17, height: 17 }}><path d="M3 8l7-5 7 5H3z"/><path d="M5 8v7m4-7v7m4-7v7M3 15h14" strokeLinecap="round"/></svg> Tạo lệnh payOS</>}
+                  {topupLoading ? <><span className="wlt-bspin" /> </> : <><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ width: 17, height: 17 }}><path d="M3 8l7-5 7 5H3z"/><path d="M5 8v7m4-7v7m4-7v7M3 15h14" strokeLinecap="round"/></svg> Nạp tiền </>}
                 </button>
-                {DEMO_ENABLED && <>
-                <button
-                  className="wlt-btn-demo"
-                  onClick={handleDemoTopup}
-                  disabled={topupLoading || !Number.isSafeInteger(Number(topupAmount)) || Number(topupAmount) < DEMO_MIN_TOPUP || Number(topupAmount) > GATEWAY_MAX_TOPUP}
-                >
-                  {topupLoading ? <span className="wlt-bspin" /> : <><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" style={{ width: 17, height: 17 }}><path d="M11 2L4 12h7l-2 6 9-10h-7L11 2z" strokeLinejoin="round"/></svg> Nạp demo (tức thì)</>}
-                </button>
-                <p className="wlt-demo-notice">Nạp demo chỉ cộng tiền ảo phục vụ thử nghiệm, không phải giao dịch thật.</p>
-                </>}
               </div>
             </div>
 

@@ -4,7 +4,6 @@ import {
   createTopup,
   verifyTopup,
   handleWebhook,
-  demoTopup,
   getWalletInfo,
   getTransactions,
   cancelTopup,
@@ -27,7 +26,6 @@ router.get('/wallet', getWalletInfo);
 router.get('/transactions', getTransactions);
 router.post('/topup', createTopup);
 router.post('/topup/verify', verifyTopup);
-router.post('/demo-topup', demoTopup);
 router.post('/cancel', cancelTopup);
 
 // Rút tiền (user)

@@ -19,10 +19,6 @@ const paymentService = {
   verifyTopup: (orderCode) =>
     api.post('/payment/topup/verify', { orderCode }),
 
-  /** Demo top-up — instant virtual credit */
-  demoTopup: (amount) =>
-    api.post('/payment/demo-topup', { amount }),
-
   /** Cancel a pending top-up */
   cancelTopup: (orderCode) =>
     api.post('/payment/cancel', { orderCode }),
