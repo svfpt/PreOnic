@@ -54,8 +54,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err) {
-    const error = err as { name?: string; http_code?: number };
-    log.error('Cloudinary upload failed', { name: error?.name, code: error?.http_code });
+    const error = err as { name?: string; http_code?: number; message?: string };
+    log.error('Cloudinary upload failed', {
+      name: error?.name,
+      code: error?.http_code,
+      message: error?.message?.slice(0, 300),
+    });
     res.status(err instanceof AppError ? err.statusCode : 502).json({
       success: false,
       message: err instanceof AppError ? err.message : 'Không thể tải ảnh lên Cloudinary. Vui lòng kiểm tra cấu hình hoặc thử lại.',

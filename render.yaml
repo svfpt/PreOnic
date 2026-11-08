@@ -1,7 +1,7 @@
 services:
   - type: web
     name: preonic-backend
-    env: node
+    runtime: node
     rootDir: be
     buildCommand: npm install && npm run build
     startCommand: npm start
@@ -21,6 +21,12 @@ services:
       - key: FRONTEND_URL
         sync: false
       - key: FRONTEND_URLS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
         sync: false
       - key: SMTP_HOST
         sync: false
