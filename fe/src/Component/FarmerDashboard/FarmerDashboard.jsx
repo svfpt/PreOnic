@@ -18,7 +18,6 @@ import WalletPayment from "../WalletPayment/WalletPayment";
 import BilateralRating from "../BilateralRating/BilateralRating";
 import FeedbackContent from "../Feedback/FeedbackContent";
 import NotificationBell from "../NotificationBell/NotificationBell";
-import MessengerFloat from "../MessengerFloat/MessengerFloat";
 import "../common/DashboardResponsive.css";
 import "./FarmerDashboard.css";
 import "../common/DashboardVisualTheme.css";
@@ -120,7 +119,6 @@ export default function FarmerDashboard() {
         </div>
       </main>
 
-      <MessengerFloat />
     </div>
   );
 }

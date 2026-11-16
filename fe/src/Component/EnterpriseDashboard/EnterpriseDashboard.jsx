@@ -9,7 +9,6 @@ import {
   SEARCH_PLACEHOLDERS,
 } from "../../constants";
 import NotificationBell from "../NotificationBell/NotificationBell";
-import MessengerFloat from "../MessengerFloat/MessengerFloat";
 import TongQuanContent from "./sections/TongQuanContent";
 import SanPhamContent from "./sections/SanPhamContent";
 import WeatherInsuranceContent from "./sections/WeatherInsuranceContent";
@@ -118,7 +117,6 @@ export default function EnterpriseDashboard() {
         </div>
       </main>
 
-      <MessengerFloat />
     </div>
   );
 }
