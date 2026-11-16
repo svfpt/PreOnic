@@ -6,6 +6,7 @@ import { startWeatherCron } from './jobs/weather-cron';
 import { startShippingCron } from './jobs/shipping-cron';
 import { startWithdrawalCron } from './jobs/withdrawal-cron';
 import { createLogger } from './utils/logger';
+import { startChatAttachmentCleanup } from './services/chat-attachment-cleanup';
 
 const log = createLogger('Server');
 
@@ -19,6 +20,7 @@ connectDB(() => {
   // Start cron jobs only when DB is ready, otherwise they will immediately fail with buffered queries.
   startWeatherCron();
   startShippingCron();
+  startChatAttachmentCleanup();
   startWithdrawalCron().catch(() => log.error('Không thể khởi tạo đối soát rút tiền'));
 });
 

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FiMapPin, FiStar, FiClock, FiShield, FiCheckCircle, FiAward,
-  FiMessageSquare, FiUsers, FiFileText
+  FiMessageSquare, FiUsers, FiFileText, FiArrowLeft
 } from "react-icons/fi";
 import Navbar from "../Navbar/Navbar";
 import { useToast } from "../../contexts/ToastContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { useMessenger } from "../../contexts/MessengerContext";
 import { ROUTES, TOAST_DURATION, REGIONS } from "../../constants";
 import { formatPrice, formatPriceRange } from "../../data/products";
 import productService, { resolveImageUrl } from "../../services/product.service";
@@ -53,8 +54,12 @@ const toUiProductDetail = (p) => ({
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const conversationId = searchParams.get("conversationId");
+  const conversationQuery = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
   const toast = useToast();
   const { isLoggedIn, user } = useAuth();
+  const messenger = useMessenger();
   const [product, setProduct] = useState(null);
   const [similar, setSimilar] = useState([]);
   const [quantity, setQuantity] = useState(1000);
@@ -195,16 +200,20 @@ const ProductDetail = () => {
   };
 
   const handleOpenMessaging = () => {
-    const partnerId = product?.seller?.userId?._id || product?.seller?.userId;
+    const partnerId = product?.createdBy || product?.seller?.userId?._id || product?.seller?.userId;
     const partnerName = product?.seller?.name || "";
 
-    if (!partnerId || isOwner) {
-      navigate(ROUTES.MESSAGING);
+    if (!partnerId || partnerId === (user?._id || user?.id)) {
+      toast.warning("Không thể mở cuộc trò chuyện với người bán này.");
       return;
     }
 
+    if (messenger) {
+      messenger.openMessenger({ partnerId, productId: product.id });
+      return;
+    }
     navigate(
-      `${ROUTES.MESSAGING}?partnerId=${encodeURIComponent(partnerId)}&partnerName=${encodeURIComponent(partnerName)}`
+      `${ROUTES.MESSAGING}?partnerId=${encodeURIComponent(partnerId)}&partnerName=${encodeURIComponent(partnerName)}&productId=${encodeURIComponent(product.id)}`
     );
   };
 
@@ -213,6 +222,9 @@ const ProductDetail = () => {
       <Navbar />
 
       <div className="pd-container">
+        {conversationId && <Link className="pd-back-to-messages" to={`${ROUTES.MESSAGING}${conversationQuery}`}>
+          <FiArrowLeft size={17} /> Quay về tin nhắn
+        </Link>}
         {/* BREADCRUMB */}
         <div className="pd-breadcrumb">
           <span onClick={() => navigate(ROUTES.HOME)}>Trang chủ</span>
@@ -496,7 +508,7 @@ const ProductDetail = () => {
             <div className="similar-grid">
               {similar.map(p => (
                 <motion.div key={p.id} className="similar-card" whileHover={{ y: -5 }}
-                  onClick={() => navigate(`/products/${p.id}`)}>
+                  onClick={() => navigate(`/products/${p.id}${conversationQuery}`)}>
                   <img src={p.image} alt={p.name} />
                   <div className="similar-info">
                     <h4>{p.name}</h4>

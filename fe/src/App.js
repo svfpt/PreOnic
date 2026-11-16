@@ -4,6 +4,8 @@ import "./App.css";
 // CONTEXTS
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { MessengerProvider } from "./contexts/MessengerContext";
+import { VideoCallProvider } from "./contexts/VideoCallContext";
 
 // COMPONENTS
 import ToastContainer from "./Component/Toast/Toast";
@@ -38,6 +40,7 @@ import EnterpriseHome from "./Component/EnterpriseHome/EnterpriseHome";
 
 // FEATURES
 import Messaging from "./Component/Messaging/Messaging";
+import MessengerFloat from "./Component/MessengerFloat/MessengerFloat";
 import ContractFlow from "./Component/ContractFlow/ContractFlow";
 import Profile from "./Component/Profile/Profile";
 import ResetPassword from "./Component/ResetPassword/ResetPassword";
@@ -63,6 +66,8 @@ function App() {
     <AuthProvider>
       <ToastProvider>
         <BrowserRouter>
+          <MessengerProvider>
+          <VideoCallProvider>
           <ToastContainer />
           <Routes>
             {/* Public */}
@@ -99,6 +104,9 @@ function App() {
             <Route path="/payment/success" element={<ProtectedRoute allowedRoles={['farmer', 'enterprise']}><PaymentResult type="success" /></ProtectedRoute>} />
             <Route path="/payment/cancel" element={<ProtectedRoute allowedRoles={['farmer', 'enterprise']}><PaymentResult type="cancel" /></ProtectedRoute>} />
           </Routes>
+          <MessengerFloat />
+          </VideoCallProvider>
+          </MessengerProvider>
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>

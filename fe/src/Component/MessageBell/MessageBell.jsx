@@ -4,14 +4,17 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMessageCircle } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
+import { useMessenger } from "../../contexts/MessengerContext";
 import { ROUTES } from "../../constants";
 import messagingService from "../../services/messaging.service";
+import { subscribeMessaging } from "../../services/messaging-events";
 import { formatDate } from "../../hooks/useApiData";
 import "../NotificationBell/NotificationBell.css";
 
 export default function MessageBell() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const messenger = useMessenger();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -30,8 +33,11 @@ export default function MessageBell() {
   useEffect(() => {
     if (!user) return;
     load();
+    const unsubscribe = subscribeMessaging(event => {
+      if (['connected', 'message', 'read'].includes(event.type)) load();
+    });
     const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); unsubscribe(); };
   }, [user]);
 
   useEffect(() => {
@@ -44,7 +50,8 @@ export default function MessageBell() {
 
   const openConversation = (conversationId) => {
     setOpen(false);
-    navigate(`${ROUTES.MESSAGING}?conversationId=${conversationId}`);
+    if (messenger) messenger.openMessenger({ conversationId });
+    else navigate(`${ROUTES.MESSAGING}?conversationId=${conversationId}`);
   };
 
   const roleLabel = (r) => (r === "enterprise" ? "Doanh nghiệp" : "Nông dân");
